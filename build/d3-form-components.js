@@ -3472,8 +3472,10 @@ function adapter (list) {
         }
 
         newObj = {
-            name: name
+            name: name,
+            id: value.id
         };
+
         if (name === '') {
             newObj.className = 'fc-dropdownlistitem-divider';
             newObj.interactivity = false;
@@ -3534,12 +3536,22 @@ ButtonWithContextMenu.prototype.postDraw = function () {
     });
 };
 
-ButtonWithContextMenu.prototype.showListItem = function () {
+ButtonWithContextMenu.prototype.showListItem = function (id) {
+    var dropDown = this.dropDownMenu,
+        container = dropDown.getFirstContainer().getContainer();
 
+    container.selectAll('div').style('display', function (d) {
+        return d.id === id && 'block';
+    });
 };
 
-ButtonWithContextMenu.prototype.hideListItem = function () {
+ButtonWithContextMenu.prototype.hideListItem = function (id) {
+    var dropDown = this.dropDownMenu,
+        container = dropDown.getFirstContainer().getContainer();
 
+    container.selectAll('div').style('display', function (d) {
+        return d.id === id && 'none';
+    });
 };
 
 
