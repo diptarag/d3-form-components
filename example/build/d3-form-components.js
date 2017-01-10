@@ -2807,7 +2807,7 @@ Button.prototype.draw = function (x, y, group) {
 
     if (typeof symbol === 'string') {
         if (!textEl) {
-            textEl = buttonGroup.append('text');
+            textEl = elements.text = buttonGroup.append('text');
         }
 
         boxDim = {
@@ -2854,6 +2854,7 @@ Button.prototype.postDraw = function () {
     this.bindEventListeners();
 };
 
+
 Button.prototype.addHoverEvents = function () {
     var self = this;
 
@@ -2884,11 +2885,13 @@ Button.prototype.on = function (eventType, fn, typename) {
 
 Button.prototype.hide = function () {
     this.buttonGroup.attr('visibility', 'hidden');
+    this.visible = false;
     return this;
 };
 
 Button.prototype.show = function () {
     this.buttonGroup.attr('visibility', 'visible');
+    this.visible = true;
     return this;
 };
 
@@ -3005,7 +3008,8 @@ InputButton.prototype.draw = function (x, y, group) {
     textAttrs = {
         x: boxDim.x,
         y: boxDim.y + boxDim.height / 2,
-        dy: '0.35em'
+        dy: '0.35em',
+        'pointer-events': 'none'
     };
 
     setAttrs(textEl, textAttrs);
