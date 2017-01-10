@@ -6,6 +6,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 var SmartLabel = _interopDefault(require('fusioncharts-smartlabel'));
 var d3Selection = require('d3-selection');
+var d3Transition = require('d3-transition');
 
 function getSmartComputedStyle (group, css) {
     var testText = 'W',
@@ -615,6 +616,9 @@ function Button (symbol) {
             right: 5,
             left: 5,
             bottom: 0
+        },
+        animation: {
+            duration: 1000
         }
     };
 
@@ -683,6 +687,8 @@ Button.prototype.draw = function (x, y, group) {
         symbolEl = elements.symbol,
         symbol = this.symbol,
         parentGroup = group || this.parentGroup,
+        animation = config.animation,
+        duration = animation.duration,
         padding = config.padding,
         padLeft = padding.left,
         padRight = padding.right,
@@ -693,6 +699,7 @@ Button.prototype.draw = function (x, y, group) {
         width,
         height,
         symbolObj,
+        t = d3Transition.transition().duration(duration),
         boxDim;
 
 
@@ -714,8 +721,9 @@ Button.prototype.draw = function (x, y, group) {
         containerEl = elements.container = buttonGroup.append('rect');
     }
 
-    containerEl.attr('x', x).attr('y', y).attr('width', width).attr('height', height)
-        .classed(containerClass, true).attr('rx', r).attr('ry', r);
+    containerEl.transition(t).
+        attr('x', x).attr('y', y).attr('width', width).attr('height', height);
+    containerEl.classed(containerClass, true).attr('rx', r).attr('ry', r);
 
     if (typeof symbol === 'string') {
         if (!textEl) {
@@ -729,8 +737,11 @@ Button.prototype.draw = function (x, y, group) {
             height: height - padBottom - padTop
         };
 
-        textEl.text(symbol).attr('x', boxDim.x + boxDim.width / 2).attr('y', boxDim.y + boxDim.height / 2)
-        .attr('dy', '0.35em').attr('text-anchor', 'middle').attr('pointer-events', 'none').classed(textClass, true);
+        textEl.text(symbol).transition(t).
+            attr('x', boxDim.x + boxDim.width / 2).attr('y', boxDim.y + boxDim.height / 2);
+
+        textEl.attr('dy', '0.35em').attr('text-anchor', 'middle').attr('pointer-events', 'none')
+        .classed(textClass, true);
     }
     else if (typeof symbol === 'function') {
         symbolObj = symbol(x + padLeft, y + padTop, width - (padLeft + padRight),
@@ -745,8 +756,16 @@ Button.prototype.draw = function (x, y, group) {
 
     this.buttonGroup = buttonGroup;
 
-    this.postDraw();
+    this.getBBox = function () {
+        return {
+            x: x,
+            y: y,
+            width: width,
+            height: height
+        };
+    };
 
+    this.postDraw();
     return this;
 };
 
@@ -1433,7 +1452,7 @@ ButtonWithContextMenu.prototype.add = function (list) {
 ButtonWithContextMenu.prototype.postDraw = function () {
     Button.prototype.postDraw.call(this);
     var self = this,
-        bBox = self.elements.container.node().getBBox(),
+        bBox = self.getBBox(),
         measurement = {};
 
     this.on('mouseover', function () {

@@ -9,5 +9,5 @@ export var author = "";
 export var license = "MIT";
 export var bugs = {"url":"https://github.com/ranajitbanerjee/d3-form-components/issues"};
 export var homepage = "https://github.com/ranajitbanerjee/d3-form-components#readme";
-export var dependencies = {"d3-selection":"^1.0.3","fusioncharts-smartlabel":"^1.0.2"};
+export var dependencies = {"d3-selection":"^1.0.3","d3-transition":"^1.0.3","fusioncharts-smartlabel":"^1.0.2"};
 export var devDependencies = {"babel-eslint":"^7.1.1","eslint":"^3.12.2","json2module":"0.0","http-server":"^0.9.0","package-preamble":"0.0","rimraf":"2","rollup":"0.36","rollup-plugin-ascii":"0.0","rollup-plugin-commonjs":"^7.0.0","rollup-plugin-node-resolve":"2","rollup-watch":"^3.1.0","tape":"4","uglify-js":"2","uglifyjs":"^2.4.10","livereload":"^0.6.0","npm-run-all":"^4.0.0","rollup-plugin-replace":"^1.1.1"};

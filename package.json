@@ -27,6 +27,7 @@
   "homepage": "https://github.com/ranajitbanerjee/d3-form-components#readme",
   "dependencies": {
     "d3-selection": "^1.0.3",
+    "d3-transition": "^1.0.3",
     "fusioncharts-smartlabel": "^1.0.2"
   },
   "devDependencies": {
