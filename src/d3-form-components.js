@@ -484,9 +484,18 @@ InputButton.prototype.getCompositeClassNames = function (className) {
 };
 
 InputButton.prototype.text = function (text) {
-    var inputBox = this.elements.inputBox;
+    var inputBox = this.elements.inputBox,
+        value = text;
 
-    return text ? inputBox.attr('value', text) : inputBox.attr('value');
+    if (text) {
+        inputBox.attr('value', text);
+        this.blur();
+    }
+    else {
+        value = inputBox.attr('value');
+    }
+
+    return value;
 };
 
 InputButton.prototype.on = function (eventType, fn, typename) {
