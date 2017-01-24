@@ -1,4 +1,4 @@
-
+/* jshint ignore:start */
 import {default as SmartLabel} from "fusioncharts-smartlabel";
 import {mergeConf, getTextDimensions} from "./utils";
 import {setStyle} from "./utils";
@@ -963,4 +963,4 @@ export function buttonWithContextMenu (symbol, container) {
 export function selectButton (options) {
     return new SelectButton(options);
 }
-
+/* jshint ignore:end */
