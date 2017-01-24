@@ -5840,11 +5840,10 @@ InputButton.prototype.draw = function (x, y, group) {
     };
 
     textAttrs = {
-        x: boxDim.x + boxDim.width / 2,
+        x: boxDim.x,
         y: boxDim.y + boxDim.height / 2,
         dy: '0.35em',
-        'pointer-events': 'none',
-        'text-anchor': 'middle'
+        'pointer-events': 'none'
     };
 
     setAttrs(textEl, textAttrs);
@@ -5852,10 +5851,12 @@ InputButton.prototype.draw = function (x, y, group) {
     textEl.classed(textClass, true);
     textEl.text(this.symbol || BLANK);
 
+    bBox = textEl.node().getBBox();
+
+    textEl.attr('x', x + padLeft + (width - padRight - padLeft) / 2 - bBox.width / 2);
     if (hasInputField) {
         !inputBox && (inputBox = elements.inputBox = select(container).append('input'));
         bBox = textEl.node().getBBox();
-
         styleObj = {
             position: 'absolute',
             top: bBox.y + PX,
@@ -5867,7 +5868,7 @@ InputButton.prototype.draw = function (x, y, group) {
             margin: '0px',
             border: '0px',
             padding: '0px',
-            visibility: 'hidden'
+            display: 'none'
         };
         inputBox.attr('placeholder', placeholder);
         inputBox.classed(inputClass, true);
@@ -5966,11 +5967,11 @@ InputButton.prototype.blur = function (textStr) {
         style = getSmartComputedStyle(this.parentGroup, this.getIndividualClassNames(this.getClassName()).text),
         smartText;
 
-    inputBox && inputBox.style('visibility', 'hidden');
+    inputBox && inputBox.style('display', 'none');
     smartLabel.setStyle(style);
     smartText = smartLabel.getSmartText(value, maxWidth, config.height);
 
-    text && text.attr('visibility', 'visible').text(smartText.text);
+    text && text.style('display', 'block').text(smartText.text);
     return this;
 };
 
@@ -5981,10 +5982,10 @@ InputButton.prototype.edit = function () {
         len = node.value.length;
 
     if (inputBox) {
-        inputBox.style('visibility', 'visible');
+        inputBox.style('display', 'block');
         node.setSelectionRange(len, len);
         node.focus();
-        elements.text.attr('visibility', 'hidden');
+        elements.text.style('display', 'none');
     }
 
     return this;
@@ -6156,7 +6157,7 @@ SelectButton.prototype.draw = function (x, y, group) {
     !containerEl && (containerEl = elements.container = buttonGroup.append('rect'));
 
     containerEl.attr('x', x).attr('y', y).attr('width', width)
-        .attr('height', height).classed(containerClass, true);
+        .attr('height', height).classed(containerClass, true).attr('rx', config.radius).attr('ry', config.radius);
 
     !textEl && (textEl = elements.text = buttonGroup.append('text'));
 
