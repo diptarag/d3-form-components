@@ -8,7 +8,6 @@ import {dropDownMenu as DropDownMenu} from "./dropdownmenu";
 import {select} from "d3-selection";
 import {transition} from "d3-transition";
 import { interpolateString } from 'd3-interpolate';
-import {tooltip} from './d3-tooltip';
 /*eslint-disable */
 
 if (ENV !== 'production') {
@@ -294,7 +293,7 @@ Button.prototype.attachTooltip = function () {
 
     if (toolText !== undefined) {
         if (!tooltip) {
-            tooltip = this.tooltip = d3.tooltip().namespace(this.namespace)
+            tooltip = this.tooltip = d3.tooltip().namespace(this.config.namespace)
                 .attachTo(d3.select(this.parentGroup.node().ownerSVGElement))
                 .offset({x: 15, y: 15});
         }
@@ -417,6 +416,7 @@ InputButton.prototype.draw = function (x, y, group) {
         inputFieldTracker = elements.inputFieldTracker,
         iconTracker = elements.iconTracker,
         hasInputField = config.hasInputField,
+        placeholder = config.placeholder,
         icon = config.icon;
 
     !buttonGroup && (buttonGroup = this.buttonGroup = group.append('g'));
@@ -441,6 +441,8 @@ InputButton.prototype.draw = function (x, y, group) {
         width: width,
         height: height,
         class: containerClass,
+        rx: config.radius,
+        ry: config.radius
     });
 
     !textEl && (textEl = elements.text = buttonGroup.append('text'));
@@ -485,7 +487,7 @@ InputButton.prototype.draw = function (x, y, group) {
             padding: '0px',
             visibility: 'hidden'
         };
-
+        inputBox.attr('placeholder', placeholder);
         inputBox.classed(inputClass, true);
         setStyle(inputBox, styleObj);
         inputBox.attr('value', this.symbol);
