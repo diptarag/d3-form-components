@@ -1,3 +1,4 @@
+
 import {default as SmartLabel} from "fusioncharts-smartlabel";
 import {mergeConf} from "./utils";
 import {setStyle} from "./utils";
@@ -5,8 +6,12 @@ import {isDIV} from "./utils";
 
 var PX = 'px',
     DEFAULT_TIMEOUT = 300,
-    smartLabel = new SmartLabel(new Date().getTime()),
-    d3 = window.d3;
+    d3 = window.d3,
+    instances = {};
+
+function getSmartLabelInstance() {
+    return instances.smartLabel || (instances.smartLabel = new SmartLabel(new Date().getTime()));
+}
 
 function ListContainer (groupId) {
     this.groupId = groupId;
@@ -218,18 +223,32 @@ DropDownMenu.prototype.classed = function (className, value) {
     return this;
 };
 
+DropDownMenu.prototype.namespace = function (namespace) {
+    var config = this.config,
+        container = config.container,
+        listItem = config.listItem,
+        states = listItem.states,
+        key;
+
+    container.className = namespace + '-' + container.className;
+
+    listItem.className = namespace + '-' + listItem.className;
+    for (key in states) {
+        states[key] = namespace + '-' + states[key];
+    }
+};
+
 DropDownMenu.prototype.add = function (listItems, refTo) {
     var self = this,
         parentContainer = self.parentContainer,
         config = this.config,
         listItem = config.listItem || {},
-        classNames = listItem.classNames || {},
-        listItemClass = classNames.normal,
+        listItemClass = listItem.className,
         listItemHover = function (d) {
             var config = self.config,
                 listItem = config.listItem || {},
-                classNames = listItem.classNames || {},
-                hoverClass = classNames.hover,
+                states = listItem.states || {},
+                hoverClass = states.hover,
                 subContainer = d.subContainer;
 
             d.parentContainer && d.parentContainer.show();
@@ -239,8 +258,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         listItemHoverOut = function (d) {
             var config = self.config,
                 listItem = config.listItem || {},
-                classNames = listItem.classNames || {},
-                hoverClass = classNames.hover;
+                states = listItem.states || {},
+                hoverClass = states.hover;
 
             d.interactivity !== false && d.listItem.classed(hoverClass, false);
             d.subContainer && d.subContainer.hide();
@@ -255,8 +274,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         initContainer = function (d) {
             d.container.init(this);
         },
-        contClassNames = (config.container && config.container.classNames) || {},
-        contClass = contClassNames.normal,
+        contClass = (config.container && config.container.className),
         container,
         containerData = self.containerData || (self.containerData = []),
         containerSelection,
@@ -281,7 +299,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         data,
         arrowUnicode = '&#9666;',
         spans,
-        padding;
+        padding,
+        smartLabel = getSmartLabelInstance();
 
     if (!containerData[contIndex]) {
         containerData[contIndex] = {
@@ -308,7 +327,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
     // Store the list items for future reference use
     listItems = self.listItems = self.listItems.concat(listItems);
 
-    (function recursiveParser (items, fCon) {
+    (function recursiveParser (items, fCon, parentListItem) {
         var listItems, listItem,
             container,
             refContainer,
@@ -349,6 +368,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             className && listItem.classed(d.className, true);
 
             d.listItem = listItem;
+            parentListItem && (d.parentListItem = parentListItem);
             d.parentContainer = listContainer;
             setStyle(listItem, d.divider ? dividerStyle : lItemStyle);
 
@@ -395,7 +415,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                     .append('div')
                     .each(initContainer);
 
-                refContainer = recursiveParser(handler, container);
+                refContainer = recursiveParser(handler, container, listItem);
 
                 refContainer.classed(contClass, true);
                 d.subContainer = refContainer;
@@ -417,13 +437,13 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
 
             if (action) {
                 // Attach event listener on dropdown list items
-                listItem.on(action + '.custom', handlerFn);
+                listItem.on(action + '.custom', handler);
             }
 
         });
 
         return listContainer;
-    })(listItems, refTo);
+    })(listItems, refTo, null);
 
     return self;
 };

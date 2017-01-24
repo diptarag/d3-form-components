@@ -1,5 +1,5 @@
 
-function getSmartComputedStyle (group, css) {
+export function getSmartComputedStyle (group, css) {
     var testText = 'W',
         mandatoryStyle = {'fill-opacity': 0},
         className = typeof css === 'string' ? css : undefined,

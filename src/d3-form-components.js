@@ -3,9 +3,12 @@ import {default as SmartLabel} from "fusioncharts-smartlabel";
 import {mergeConf, getTextDimensions} from "./utils";
 import {setStyle} from "./utils";
 import {setAttrs} from "./utils";
+import {getSmartComputedStyle} from "./utils";
 import {dropDownMenu as DropDownMenu} from "./dropdownmenu";
 import {select} from "d3-selection";
 import {transition} from "d3-transition";
+import { interpolateString } from 'd3-interpolate';
+import {tooltip} from './d3-tooltip';
 /*eslint-disable */
 
 if (ENV !== 'production') {
@@ -17,13 +20,12 @@ if (ENV !== 'production') {
 /*eslint-enable */
 var PX = 'px',
     BLANK = '',
-    smartLabel = new SmartLabel(new Date().getTime()),
     classRules = {
         button: ['container', 'text', 'symbol'],
-        inputButton: ['container', 'text', 'input'],
+        inputButton: ['container', 'text', 'input', 'icon'],
         selectButton: ['container', 'text', 'arrow']
     },
-    getCompositeClassNames = function (className, component) {
+    getIndividualClassNames = function (className, component) {
         var rules = classRules[component],
             classNames = {},
             i,
@@ -37,29 +39,33 @@ var PX = 'px',
     getDefaultDropDownConf = function () {
         return {
             container: {
-                classNames: {
-                    normal: 'fc-dropdown-default'
-                }
+                className: 'd3-dropdown'
             },
             listItem: {
-                classNames: {
-                    normal: 'fc-dropdownlistitem-default',
-                    hover: 'fc-dropdownlistitem-state-hover',
-                    selected: 'fc-dropdownlistitem-state-selected'
+                className: 'd3-dropdownlistitem',
+                states: {
+                    hover: 'd3-dropdownlistitem-state-hover',
+                    selected: 'd3-dropdownlistitem-state-selected'
                 }
             }
         };
-    };
+    },
+    instances = {};
+
+function getSmartLabelInstance() {
+    return instances.smartLabel || (instances.smartLabel = new SmartLabel(new Date().getTime()));
+}
 
 
 function Button (symbol) {
     this.symbol = symbol;
     this.config = {
-        className: 'fc-btn-default',
+        className: 'd3-button',
+        specificClassName: 'd3-button',
         states: {
-            hover: 'fc-btn-default-state-hover',
-            selected: 'fc-btn-default-state-selected',
-            disabled: 'fc-btn-default-state-disabled'
+            hover: 'd3-button-state-hover',
+            selected: 'd3-button-state-selected',
+            disabled: 'd3-button-state-disabled'
         },
         padding: {
             top: 4,
@@ -82,6 +88,18 @@ function Button (symbol) {
     this.elements = {};
 }
 
+Button.prototype.namespace = function (namespace) {
+    this.config.namespace = namespace;
+
+    this.config.className = namespace + '-' + this.config.className;
+    this.config.specificClassName = this.config.className;
+};
+
+Button.prototype.appendSelector = function (selector) {
+    this.config.selector = selector;
+    this.config.specificClassName = this.config.className + '-' + selector;
+};
+
 Button.prototype.dispose = function () {
     this.buttonGroup && this.buttonGroup.remove();
 };
@@ -97,8 +115,9 @@ Button.prototype.getConfig = function (key) {
 
 Button.prototype.getLogicalSpace = function () {
     var config = this.config,
-        className = config.className,
-        classNames = this.getCompositeClassNames(className),
+        className = config.specificClassName,
+        classNames = this.getIndividualClassNames(className),
+        smartLabel = getSmartLabelInstance(),
         textClass = classNames.text,
         symbol = this.symbol,
         pad = config.padding,
@@ -108,8 +127,11 @@ Button.prototype.getLogicalSpace = function () {
         dimensions = {
             width: 0,
             height: 0
-        };
+        },
+        style = getSmartComputedStyle(select('svg'), textClass),
+        fontSize = style.fontSize;
 
+    this.textFontSize = parseInt(fontSize);
 
     typeof symbol === 'string' && (dimensions = getTextDimensions(symbol, textClass, select('svg'), smartLabel));
 
@@ -123,8 +145,12 @@ Button.prototype.getLogicalSpace = function () {
     });
 };
 
-Button.prototype.getCompositeClassNames = function (className) {
-    return getCompositeClassNames(className, 'button');
+Button.prototype.getIndividualClassNames = function (className) {
+    return getIndividualClassNames(className, 'button');
+};
+
+Button.prototype.getClassName = function () {
+    return this.config.specificClassName;
 };
 
 Button.prototype.setParentGroup = function (group) {
@@ -133,7 +159,9 @@ Button.prototype.setParentGroup = function (group) {
 
 Button.prototype.draw = function (x, y, group) {
     var config = this.config,
-        classNames = this.getCompositeClassNames(config.className),
+        className = config.className,
+        specificClassName = config.specificClassName,
+        classNames = this.getIndividualClassNames(specificClassName),
         containerClass = classNames.container,
         textClass = classNames.text,
         symbolClass = classNames.symbol,
@@ -173,6 +201,8 @@ Button.prototype.draw = function (x, y, group) {
     if (!buttonGroup) {
         buttonGroup = this.buttonGroup = group.append('g');
     }
+
+    this.buttonGroup.classed(className + ' ' + specificClassName, true);
 
     if (!containerEl) {
         containerEl = elements.container = buttonGroup.append('rect');
@@ -253,12 +283,27 @@ Button.prototype.addHoverEvents = function () {
     self.on('mouseout', function () {
         self.removeState('hover');
     }, 'default');
+    // this.attachTooltip();
 };
+
+// Button.prototype.attachTooltip = function () {
+//     var tooltip = this.tooltip,
+//         buttonGroup = this.buttonGroup;
+
+//     if (!tooltip) {
+//         tooltip = this.tooltip = d3.tooltip().namespace('fusioncharts')
+//             .attachTo(d3.select('svg'))
+//             .constrain(520, 500)
+//             .offset({x: 15, y: 15});
+//     }
+//     buttonGroup.data([[null, 'adsadsads']]).call(tooltip);
+// };
 
 Button.prototype.classed = function (className, value) {
     var elements = this.elements,
-        classNames = getCompositeClassNames(className, 'button');
+        classNames = getIndividualClassNames(className, 'button');
 
+    this.buttonGroup.classed(className, value);
     elements.container && elements.container.classed(classNames.container, value);
     elements.text && elements.text.classed(classNames.text, value);
     elements.symbol && elements.symbol.classed(classNames.symbol, value);
@@ -316,11 +361,11 @@ Button.prototype.attachEventHandlers = function (eventMap) {
 function InputButton () {
     Button.apply(this, arguments);
     this.setConfig({
-        className: 'fc-inputbtn-default',
+        className: 'd3-inputbutton',
         states: {
-            hover: 'fc-inputbtn-state-hover',
-            selected: 'fc-inputbtn-state-selected',
-            disabled: 'fc-inputbtn-state-disabled'
+            hover: 'd3-inputbutton-state-hover',
+            selected: 'd3-inputbutton-state-selected',
+            disabled: 'd3-inputbutton-state-disabled'
         },
         padding: {
             left: 10
@@ -333,10 +378,13 @@ InputButton.prototype = Object.create(Button.prototype);
 InputButton.prototype.draw = function (x, y, group) {
     var self = this,
         config = this.config,
-        classNames = this.getCompositeClassNames(config.className),
+        className = config.className,
+        specificClassName = config.specificClassName,
+        classNames = this.getIndividualClassNames(specificClassName),
         containerClass = classNames.container,
         textClass = classNames.text,
         inputClass = classNames.input,
+        iconClass = classNames.icon,
         elements = this.elements,
         containerEl = elements.container,
         textEl = elements.text,
@@ -355,7 +403,17 @@ InputButton.prototype.draw = function (x, y, group) {
         bBox,
         styleObj,
         container,
-        textAttrs;
+        textAttrs,
+        startX,
+        startY,
+        arrowWidth = this.textFontSize / 1.3,
+        arrowHeight = this.textFontSize / 2.6,
+        arrowPath,
+        arrow = elements.arrow,
+        inputFieldTracker = elements.inputFieldTracker,
+        iconTracker = elements.iconTracker,
+        hasInputField = config.hasInputField,
+        icon = config.icon;
 
     !buttonGroup && (buttonGroup = this.buttonGroup = group.append('g'));
 
@@ -364,7 +422,7 @@ InputButton.prototype.draw = function (x, y, group) {
     if (!this.logicalSpace) {
         logicalSpace = this.getLogicalSpace();
     }
-
+    buttonGroup.classed(className + ' ' + specificClassName, true);
     logicalSpace = this.logicalSpace;
     width = logicalSpace.width;
     height = logicalSpace.height;
@@ -378,13 +436,13 @@ InputButton.prototype.draw = function (x, y, group) {
         y: y,
         width: width,
         height: height,
-        class: containerClass
+        class: containerClass,
     });
 
     !textEl && (textEl = elements.text = buttonGroup.append('text'));
 
 
-    textEl.text(this.symbol || BLANK);
+    textEl.text(this.symbol || 'W');
 
     boxDim = {
         x: x + padLeft,
@@ -394,54 +452,112 @@ InputButton.prototype.draw = function (x, y, group) {
     };
 
     textAttrs = {
-        x: boxDim.x,
+        x: boxDim.x + boxDim.width / 2,
         y: boxDim.y + boxDim.height / 2,
         dy: '0.35em',
-        'pointer-events': 'none'
+        'pointer-events': 'none',
+        'text-anchor': 'middle'
     };
 
     setAttrs(textEl, textAttrs);
 
     textEl.classed(textClass, true);
+    textEl.text(this.symbol || BLANK);
 
-    !inputBox && (inputBox = elements.inputBox = select(container).append('input'));
+    if (hasInputField) {
+        !inputBox && (inputBox = elements.inputBox = select(container).append('input'));
+        bBox = textEl.node().getBBox();
 
-    bBox = textEl.node().getBBox();
+        styleObj = {
+            position: 'absolute',
+            top: bBox.y + PX,
+            left: bBox.x + PX,
+            width: width - (padLeft + padRight) - (config.icon ? arrowWidth : 0) - 5 + PX,
+            height: (bBox.height || height) + PX,
+            '-webkit-apperance': 'none',
+            outline: 'none',
+            margin: '0px',
+            border: '0px',
+            padding: '0px',
+            visibility: 'hidden'
+        };
 
-    styleObj = {
-        position: 'absolute',
-        top: bBox.y + PX,
-        left: bBox.x + PX,
-        width: width - (padLeft + padRight) + PX,
-        height: bBox.height + PX,
-        '-webkit-apperance': 'none',
-        outline: 'none',
-        margin: '0px',
-        border: '0px',
-        padding: '0px',
-        visibility: 'hidden'
-    };
+        inputBox.classed(inputClass, true);
+        setStyle(inputBox, styleObj);
+        inputBox.attr('value', this.symbol);
+    }
 
-    inputBox.classed(inputClass, true);
-    setStyle(inputBox, styleObj);
+    if (!inputFieldTracker) {
+        inputFieldTracker = elements.inputFieldTracker = buttonGroup.append('rect');
+    }
+
+    setAttrs(inputFieldTracker, {
+        x: x,
+        y: y,
+        width: width - (config.icon ? padRight + arrowWidth : 0),
+        height: height
+    });
+
+    setStyle(inputFieldTracker, {
+        'opacity': 0,
+        cursor: hasInputField ? 'text' : 'pointer'
+    });
 
     this.buttonGroup = buttonGroup;
 
-    inputBox.attr('value', this.symbol);
+    if (icon) {
+        startX = x + width - padRight - arrowWidth + 4;
+        startY = y + height / 2 - arrowHeight / 2;
 
-    self.on('click', self.edit.bind(self), 'default');
+        arrowPath = ['M', startX, startY, 'L', startX + arrowWidth, startY, 'L', startX + arrowWidth / 2,
+            startY + arrowHeight, 'Z'];
 
-    self.on('blur', self.blur.bind(self), 'default');
+        !arrow && (arrow = elements.arrow = buttonGroup.append('path'));
+
+        arrow.attr('d', arrowPath.toString().replace(/,/g, ' '))
+            .classed(iconClass, true).attr('pointer-events', 'none');
+
+        if (!iconTracker) {
+            iconTracker = elements.iconTracker = buttonGroup.append('rect');
+        }
+
+        setAttrs(iconTracker, {
+            x: x + width - arrowWidth - padRight,
+            y: y,
+            width: arrowWidth + padRight,
+            height: height
+        });
+
+        setStyle(iconTracker, {
+            'opacity': 0,
+            cursor: 'pointer'
+        });
+    }
+
+
+    self.config.hasInputField !== false && self.on('click', self.edit.bind(self), 'default');
+
+    self.config.hasInputField !== false && self.on('blur', self.blur.bind(self), 'default');
 
     this.postDraw();
+
+    this.getBBox = function () {
+        return {
+            x: x,
+            y: y,
+            width: width,
+            height: height
+        };
+    };
 
     return self;
 };
 
 InputButton.prototype.classed = function (className, value) {
     var elements = this.elements,
-        classNames = getCompositeClassNames(className, 'inputButton');
+        classNames = getIndividualClassNames(className, 'inputButton');
 
+    this.buttonGroup.classed(className, value);
     elements.container && elements.container.classed(classNames.container, value);
     elements.text && elements.text.classed(classNames.text, value);
     elements.symbol && elements.symbol.classed(classNames.symbol, value);
@@ -449,18 +565,22 @@ InputButton.prototype.classed = function (className, value) {
     return this;
 };
 
-InputButton.prototype.blur = function () {
+InputButton.prototype.blur = function (textStr) {
     var elements = this.elements,
         inputBox = elements.inputBox,
+        smartLabel = getSmartLabelInstance(),
         text = elements.text,
-        node = inputBox.node(),
-        value = node.value,
-        maxWidth = node.offsetWidth,
-        maxHeight = node.offsetHeight,
+        node = inputBox && inputBox.node(),
+        value = node ? node.value : textStr,
+        config = this.config,
+        pad = config.padding,
+        maxWidth = config.width - (pad.left + pad.right),
+        style = getSmartComputedStyle(this.parentGroup, this.getIndividualClassNames(this.getClassName()).text),
         smartText;
 
     inputBox && inputBox.style('visibility', 'hidden');
-    smartText = smartLabel.getSmartText(value, maxWidth, maxHeight);
+    smartLabel.setStyle(style);
+    smartText = smartLabel.getSmartText(value, maxWidth, config.height);
 
     text && text.attr('visibility', 'visible').text(smartText.text);
     return this;
@@ -469,18 +589,21 @@ InputButton.prototype.blur = function () {
 InputButton.prototype.edit = function () {
     var elements = this.elements,
         inputBox = elements.inputBox,
-        node = inputBox.node(),
+        node = inputBox && inputBox.node(),
         len = node.value.length;
 
-    inputBox.style('visibility', 'visible');
-    node.setSelectionRange(len, len);
-    node.focus();
-    elements.text.attr('visibility', 'hidden');
+    if (inputBox) {
+        inputBox.style('visibility', 'visible');
+        node.setSelectionRange(len, len);
+        node.focus();
+        elements.text.attr('visibility', 'hidden');
+    }
+
     return this;
 };
 
-InputButton.prototype.getCompositeClassNames = function (className) {
-    return getCompositeClassNames(className, 'inputButton');
+InputButton.prototype.getIndividualClassNames = function (className) {
+    return getIndividualClassNames(className, 'inputButton');
 };
 
 InputButton.prototype.text = function (text) {
@@ -488,11 +611,11 @@ InputButton.prototype.text = function (text) {
         value = text;
 
     if (text) {
-        inputBox.attr('value', text);
-        this.blur();
+        inputBox && (inputBox.node().value = text);
+        this.blur(text);
     }
     else {
-        value = inputBox.attr('value');
+        value = inputBox ? inputBox.node().value : this.elements.text.text();
     }
 
     return value;
@@ -506,11 +629,13 @@ InputButton.prototype.on = function (eventType, fn, typename) {
         case 'blur':
         case 'change':
         case 'keypress':
-            inputBox.on(eventName, fn);
+            inputBox && inputBox.on(eventName, fn);
             break;
-
+        case 'onIconClick':
+            this.elements.iconTracker && this.elements.iconTracker.on('click', fn);
+            break;
         default:
-            this.buttonGroup.on(eventName, fn);
+            this.elements.inputFieldTracker && this.elements.inputFieldTracker.on(eventName, fn);
             break;
     }
 
@@ -542,10 +667,10 @@ function SelectButton (options) {
     Button.apply(this, arguments);
 
     this.setConfig({
-        className: 'fc-selectbtn-default',
+        className: 'd3-selectbutton',
         states: {
-            hover: 'fc-selectbtn-state-hover',
-            selected: 'fc-selectbtn-state-selected'
+            hover: 'd3-selectbutton-state-hover',
+            selected: 'd3-selectbutton-state-selected'
         },
         dropDownMenu: getDefaultDropDownConf()
     });
@@ -558,7 +683,8 @@ SelectButton.prototype.getLogicalSpace = function () {
         width = config.width,
         height = config.height,
         options = this.options || [],
-        classNames = this.getCompositeClassNames(config.className),
+        smartLabel = getSmartLabelInstance(),
+        classNames = this.getIndividualClassNames(config.specificClassName),
         className = classNames.text,
         group = this.parentGroup,
         pad = config.padding,
@@ -608,7 +734,9 @@ SelectButton.prototype.draw = function (x, y, group) {
         startY,
         bBox,
         config = this.config,
-        classNames = this.getCompositeClassNames(config.className),
+        className = config.className,
+        specificClassName = config.specificClassName,
+        classNames = this.getIndividualClassNames(specificClassName),
         containerClass = classNames.container,
         textClass = classNames.text,
         arrowClass = classNames.arrow,
@@ -634,6 +762,8 @@ SelectButton.prototype.draw = function (x, y, group) {
     height = logicalSpace.height;
 
     !buttonGroup && (buttonGroup = this.buttonGroup = group.append('g'));
+
+    buttonGroup.classed(className + ' ' + specificClassName, true);
 
     !containerEl && (containerEl = elements.container = buttonGroup.append('rect'));
 
@@ -674,6 +804,34 @@ SelectButton.prototype.draw = function (x, y, group) {
     return this;
 };
 
+SelectButton.prototype.namespace = function (namespace) {
+    var dropdownmenu = this.config.dropDownMenu,
+        container = dropdownmenu.container,
+        listItem = dropdownmenu.listItem,
+        states = listItem.states,
+        key;
+
+    Button.prototype.namespace.call(this, namespace);
+
+    container.className = namespace + '-' + container.className;
+    listItem.className = namespace + '-' + listItem.className;
+
+    for (key in states) {
+        states[key] = namespace + '-' + states[key];
+    }
+};
+
+SelectButton.prototype.appendSelector = function (selector) {
+    var dropdownmenu = this.config.dropDownMenu,
+        container = dropdownmenu.container,
+        listItem = dropdownmenu.listItem;
+
+    Button.prototype.appendSelector.call(this, selector);
+
+    container.className = container.className + '-' + selector;
+    listItem.className = listItem.className + '-' + selector;
+};
+
 SelectButton.prototype.text = function (text) {
     return this.buttonGroup.select('text').text(text);
 };
@@ -681,14 +839,22 @@ SelectButton.prototype.text = function (text) {
 SelectButton.prototype.value = function (value) {
     var dropDownMenu = this.dropDownMenu,
         self = this,
-        container = dropDownMenu.container.getContainer();
+        container = dropDownMenu.container,
+        containerElem,
+        selectedItem = self.selectedItem;
 
-    container.selectAll('div').each(function (d) {
+    if (value === undefined && selectedItem) {
+        return selectedItem.datum().value;
+    }
+
+    containerElem = container.getContainer();
+
+    containerElem.selectAll('div').each(function (d) {
         var item;
         if (d.value === value) {
             item = select(this);
-            self.selectedItem && self.selectedItem.classed('selected', false);
-            item.classed('selected', true);
+            self.selectedItem && self.selectItem(self.selectedItem, false);
+            self.selectItem(item, true);
             self.text(item.datum().name);
             self.selectedItem = item;
         }
@@ -702,8 +868,9 @@ SelectButton.prototype.createMenu = function (containerElem) {
         dropDownMenuConf = this.config.dropDownMenu || {},
         container = dropDownMenuConf.container || {},
         listItem = dropDownMenuConf.listItem || {},
-        contClassNames = container.classNames || {},
-        listItemClassNames = listItem.classNames || {},
+        className = container.className || {},
+        listItemClass = listItem.className || {},
+        states = listItem.states,
         bBox = node.getBBox();
 
     if (!dropDownMenu) {
@@ -712,15 +879,11 @@ SelectButton.prototype.createMenu = function (containerElem) {
 
     dropDownMenu.setConfig({
         listItem: {
-            classNames: {
-                normal: listItemClassNames.normal,
-                hover: listItemClassNames.hover
-            }
+            className: listItemClass,
+            states: states
         },
         container: {
-            classNames: {
-                normal: contClassNames.normal
-            }
+            className: className
         }
     });
 
@@ -790,6 +953,7 @@ SelectButton.prototype.add = function (list) {
 
         listContainer.selectAll('div').on('click.selected', this.onSelect()).each(function (d, i) {
             if (i === 0) {
+                self.selectedItem && self.selectItem(self.selectedItem, false);
                 self.selectedItem = self.selectItem(select(this), true);
             }
         });
@@ -811,9 +975,9 @@ SelectButton.prototype.updateList = function (list) {
 SelectButton.prototype.selectItem = function (item, value) {
     var dropDownMenuConf = this.config.dropDownMenu || {},
         listItem = dropDownMenuConf.listItem || {},
-        listItemClassNames = listItem.classNames || {};
+        states = listItem.states || {};
 
-    return item.classed(listItemClassNames.selected, value);
+    return item.classed(states.selected, value);
 };
 
 SelectButton.prototype.onSelect = function () {
@@ -847,8 +1011,8 @@ SelectButton.prototype.on = function (eventType, fn, typename) {
     return this;
 };
 
-SelectButton.prototype.getCompositeClassNames = function (className) {
-    return getCompositeClassNames(className, 'selectButton');
+SelectButton.prototype.getIndividualClassNames = function (className) {
+    return getIndividualClassNames(className, 'selectButton');
 };
 
 
@@ -862,57 +1026,12 @@ function ButtonWithContextMenu (symbol, container) {
     this.dropDownMenu.setConfig(this.config.dropDownMenu);
 }
 
-function adapter (list) {
-    var newList = [], newObj,obj,key,name,value,i;
-    for (i = 0; i < list.length; i++) {
-        obj = list[i];
-
-        for (key in obj) {
-            name = key;
-            value = obj[name];
-        }
-
-        newObj = {
-            name: name,
-            id: value.id
-        };
-
-        if (name === '') {
-            newObj.className = 'fc-dropdownlistitem-divider';
-            newObj.interactivity = false;
-            newObj.divider = true;
-        }
-
-
-        if (/&nbsp;/.test(newObj.name)) {
-            newObj.name = newObj.name.replace(/&nbsp;/g, '').trim();
-            newObj.className = 'fc-dropdownlistitem-subcategory';
-            newObj.padding = {
-                left: 20
-            };
-        }
-
-        if (/Growth/.test(name)) {
-
-            newObj.interactivity = false;
-            newObj.className = 'fc-dropdownlistitem-category';
-        }
-
-        if (typeof value.handler === 'object') {
-            newObj.handler = adapter(value.handler);
-        }
-
-        newList.push(newObj);
-    }
-
-    return newList;
-}
 
 ButtonWithContextMenu.prototype = Object.create(Button.prototype);
 
 ButtonWithContextMenu.prototype.add = function (list) {
     var dropDownMenu = this.dropDownMenu;
-    dropDownMenu.add(adapter(list));
+    dropDownMenu.add(list);
 };
 
 ButtonWithContextMenu.prototype.postDraw = function () {
