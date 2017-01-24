@@ -283,21 +283,25 @@ Button.prototype.addHoverEvents = function () {
     self.on('mouseout', function () {
         self.removeState('hover');
     }, 'default');
-    // this.attachTooltip();
+
+    this.attachTooltip();
 };
 
-// Button.prototype.attachTooltip = function () {
-//     var tooltip = this.tooltip,
-//         buttonGroup = this.buttonGroup;
+Button.prototype.attachTooltip = function () {
+    var tooltip = this.tooltip,
+        buttonGroup = this.buttonGroup,
+        toolText = this.config.toolText;
 
-//     if (!tooltip) {
-//         tooltip = this.tooltip = d3.tooltip().namespace('fusioncharts')
-//             .attachTo(d3.select('svg'))
-//             .constrain(520, 500)
-//             .offset({x: 15, y: 15});
-//     }
-//     buttonGroup.data([[null, 'adsadsads']]).call(tooltip);
-// };
+    if (toolText !== undefined) {
+        if (!tooltip) {
+            tooltip = this.tooltip = d3.tooltip().namespace(this.namespace)
+                .attachTo(d3.select(this.parentGroup.node().ownerSVGElement))
+                .offset({x: 15, y: 15});
+        }
+
+        buttonGroup.data([[null, toolText]]).call(tooltip);
+    }
+};
 
 Button.prototype.classed = function (className, value) {
     var elements = this.elements,
