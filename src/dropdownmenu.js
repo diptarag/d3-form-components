@@ -138,6 +138,7 @@ ListContainer.prototype.show = function (target) {
         }
     }
     else if (measurement) {
+        console.log(measurement.top);
         style = {
             left: measurement.left === undefined ? 'auto' : measurement.left + PX,
             top : measurement.top === undefined ? 'auto' : measurement.top + PX,

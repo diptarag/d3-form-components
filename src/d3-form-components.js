@@ -172,7 +172,7 @@ Button.prototype.draw = function (x, y, group) {
         symbol = this.symbol,
         parentGroup = group || this.parentGroup,
         animation = config.animation,
-        duration = animation.duration,
+        duration = this.drawn ? animation.duration : 0,
         padding = config.padding,
         padLeft = padding.left,
         padRight = padding.right,
@@ -252,6 +252,8 @@ Button.prototype.draw = function (x, y, group) {
     };
 
     this.postDraw();
+
+    this.drawn = true;
     return this;
 };
 
@@ -470,16 +472,13 @@ InputButton.prototype.draw = function (x, y, group) {
     textEl.text(this.symbol || BLANK);
 
     bBox = textEl.node().getBBox();
-
-    textEl.attr('x', x + padLeft + (width - padRight - padLeft) / 2 - bBox.width / 2);
     if (hasInputField) {
         !inputBox && (inputBox = elements.inputBox = select(container).append('input'));
-        bBox = textEl.node().getBBox();
         styleObj = {
             position: 'absolute',
             top: bBox.y + PX,
             left: bBox.x + PX,
-            width: width - (padLeft + padRight) - (config.icon ? arrowWidth : 0) - 5 + PX,
+            width: width - (padLeft + padRight) - (config.icon ? arrowWidth : 0) + 3 + PX,
             height: (bBox.height || height) + PX,
             '-webkit-apperance': 'none',
             outline: 'none',
@@ -939,7 +938,8 @@ SelectButton.prototype.add = function (list) {
         listContainer,
         dimensions,
         bBox = this.elements.container.node().getBBox(),
-        viewPortHeight = window.innerHeight,
+        clientBox = this.parentGroup.node().ownerSVGElement.getBoundingClientRect(),
+        viewPortHeight = clientBox.top + clientBox.height,
         container;
 
     list.length !==0 && dropDownMenu.add(list);
@@ -951,8 +951,16 @@ SelectButton.prototype.add = function (list) {
         listContainer = container.getContainer();
         dimensions = container.getDimensions();
         if (bBox.y + bBox.height + dimensions.height > viewPortHeight) {
+            console.log(bBox.width, bBox.x);
             dropDownMenu.setMeasurement({
                 top: bBox.y - dimensions.height,
+                left: bBox.x,
+                width: bBox.width
+            });
+        }
+        else {
+            dropDownMenu.setMeasurement({
+                top: bBox.y + bBox.height,
                 left: bBox.x,
                 width: bBox.width
             });
