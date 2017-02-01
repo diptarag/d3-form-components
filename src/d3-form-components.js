@@ -49,6 +49,14 @@ var PX = 'px',
             }
         };
     },
+    touchMap = {
+        mouseover: 'touchstart',
+        mousedown: 'touchstart',
+        mouseup: 'touchend',
+        mousemove: 'touchmove',
+        click: 'touchstart',
+        mouseout: 'touchend'
+    },
     instances = {};
 
 function getSmartLabelInstance() {
@@ -88,15 +96,27 @@ function Button (symbol) {
 }
 
 Button.prototype.namespace = function (namespace) {
-    this.config.namespace = namespace;
+    var config = this.config,
+        states = config.states,
+        key;
 
-    this.config.className = namespace + '-' + this.config.className;
-    this.config.specificClassName = this.config.className;
+    config.namespace = namespace;
+
+    config.className = namespace + '-' + config.className;
+    config.specificClassName = this.config.className;
+    for (key in states) {
+        states[key] = namespace + '-' + states[key];
+    }
 };
 
 Button.prototype.appendSelector = function (selector) {
+    var key, states = this.config.states;
+
     this.config.selector = selector;
     this.config.specificClassName = this.config.className + '-' + selector;
+    for (key in states) {
+        states[key] = states[key] + '-' + selector;
+    }
 };
 
 Button.prototype.dispose = function () {
@@ -184,6 +204,7 @@ Button.prototype.draw = function (x, y, group) {
         height,
         symbolObj,
         t = transition().duration(duration),
+        tracker = this.elements.tracker,
         boxDim;
 
 
@@ -242,6 +263,13 @@ Button.prototype.draw = function (x, y, group) {
 
     this.buttonGroup = buttonGroup;
 
+    if (!tracker) {
+        tracker = elements.tracker = buttonGroup.append('rect');
+    }
+
+    tracker.attr('x', x).attr('y', y).attr('width', width).attr('height', height)
+        .style('fill-opacity', '0.00001').style('stroke-opacity', '0.00001').style('cursor', 'pointer');
+
     this.getBBox = function () {
         return {
             x: x,
@@ -290,7 +318,6 @@ Button.prototype.addHoverEvents = function () {
 
 Button.prototype.attachTooltip = function () {
     var tooltip = this.tooltip,
-        buttonGroup = this.buttonGroup,
         toolText = this.config.toolText;
 
     if (toolText !== undefined) {
@@ -300,7 +327,7 @@ Button.prototype.attachTooltip = function () {
                 .offset({x: 15, y: 15});
         }
 
-        buttonGroup.data([[null, toolText]]).call(tooltip);
+        this.elements.tracker.data([[null, toolText]]).call(tooltip);
     }
 };
 
@@ -317,7 +344,23 @@ Button.prototype.classed = function (className, value) {
 };
 
 Button.prototype.on = function (eventType, fn, typename) {
-    this.buttonGroup.on(eventType + '.' + (typename || 'custom'), fn);
+    var supportsTouch = "ontouchstart" in window,
+        eventName = eventType;
+// console.log(supportsTouch);
+//     if (supportsTouch) {
+//         eventName = touchMap[eventType];
+//         // this.elements.tracker.on(eventName + '.' + (typename || 'custom'), function () {
+//         //     console.log(eventType);
+//         //     fn();
+//         // });
+//     }
+
+    this.elements.tracker.on(eventName + '.' + (typename || 'custom'), function () {
+        console.log(eventName);
+        fn();
+    });
+
+
     return this;
 };
 
@@ -951,7 +994,6 @@ SelectButton.prototype.add = function (list) {
         listContainer = container.getContainer();
         dimensions = container.getDimensions();
         if (bBox.y + bBox.height + dimensions.height > viewPortHeight) {
-            console.log(bBox.width, bBox.x);
             dropDownMenu.setMeasurement({
                 top: bBox.y - dimensions.height,
                 left: bBox.x,
@@ -1011,6 +1053,8 @@ SelectButton.prototype.onSelect = function () {
 };
 
 SelectButton.prototype.on = function (eventType, fn, typename) {
+    var eventName;
+
     switch (eventType) {
         case 'change':
             this.onChange = fn;
@@ -1019,6 +1063,12 @@ SelectButton.prototype.on = function (eventType, fn, typename) {
             this.onBlur = fn;
             break;
         default:
+            // eventName = touchMap[eventType];
+
+            // this.buttonGroup.on(eventName + '.' + (typename || 'custom'), function () {
+            //     console.log(eventType);
+            //     fn();
+            // });
             this.buttonGroup.on(eventType + '.' + (typename || 'custom'), fn);
             break;
     }

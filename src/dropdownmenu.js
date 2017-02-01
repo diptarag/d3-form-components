@@ -138,7 +138,6 @@ ListContainer.prototype.show = function (target) {
         }
     }
     else if (measurement) {
-        console.log(measurement.top);
         style = {
             left: measurement.left === undefined ? 'auto' : measurement.left + PX,
             top : measurement.top === undefined ? 'auto' : measurement.top + PX,
@@ -436,7 +435,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             listItem.on('mouseout.default', listItemHoverOut);
             listItem.on('click.default', listItemClicked);
 
-            if (action) {
+            if (action && typeof handler === 'function') {
                 // Attach event listener on dropdown list items
                 listItem.on(action + '.custom', handler);
             }
