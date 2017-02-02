@@ -5578,7 +5578,6 @@ Button.prototype.draw = function (x, y, group) {
         height,
         symbolObj,
         t = transition().duration(duration),
-        tracker = this.elements.tracker,
         boxDim;
 
 
@@ -5637,13 +5636,6 @@ Button.prototype.draw = function (x, y, group) {
 
     this.buttonGroup = buttonGroup;
 
-    if (!tracker) {
-        tracker = elements.tracker = buttonGroup.append('rect');
-    }
-
-    tracker.attr('x', x).attr('y', y).attr('width', width).attr('height', height)
-        .style('fill-opacity', '0.00001').style('stroke-opacity', '0.00001').style('cursor', 'pointer');
-
     this.getBBox = function () {
         return {
             x: x,
@@ -5692,6 +5684,7 @@ Button.prototype.addHoverEvents = function () {
 
 Button.prototype.attachTooltip = function () {
     var tooltip = this.tooltip,
+        buttonGroup = this.buttonGroup,
         toolText = this.config.toolText;
 
     if (toolText !== undefined) {
@@ -5701,7 +5694,7 @@ Button.prototype.attachTooltip = function () {
                 .offset({x: 15, y: 15});
         }
 
-        this.elements.tracker.data([[null, toolText]]).call(tooltip);
+        buttonGroup.data([[null, toolText]]).call(tooltip);
     }
 };
 
@@ -5718,23 +5711,7 @@ Button.prototype.classed = function (className, value) {
 };
 
 Button.prototype.on = function (eventType, fn, typename) {
-    var supportsTouch = "ontouchstart" in window,
-        eventName = eventType;
-// console.log(supportsTouch);
-//     if (supportsTouch) {
-//         eventName = touchMap[eventType];
-//         // this.elements.tracker.on(eventName + '.' + (typename || 'custom'), function () {
-//         //     console.log(eventType);
-//         //     fn();
-//         // });
-//     }
-
-    this.elements.tracker.on(eventName + '.' + (typename || 'custom'), function () {
-        console.log(eventName);
-        fn();
-    });
-
-
+    this.buttonGroup.on(eventType + '.' + (typename || 'custom'), fn);
     return this;
 };
 
@@ -6391,8 +6368,14 @@ SelectButton.prototype.add = function (list) {
     }
 };
 
-SelectButton.prototype.setPlaceHolderValue = function () {
+SelectButton.prototype.setPlaceHolderValue = function (value) {
+    var elements = this.elements,
+        text = elements.text;
 
+    text && text.text(value);
+    // Unselect the item
+    this.selectItem(this.selectedItem, false);
+    this.selectedItem = undefined;
 };
 
 SelectButton.prototype.updateList = function (list) {
