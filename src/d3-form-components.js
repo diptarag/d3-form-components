@@ -600,6 +600,7 @@ InputButton.prototype.blur = function (textStr) {
     smartLabel.setStyle(style);
     smartText = smartLabel.getSmartText(value, maxWidth, config.height);
 
+    this.symbol = smartText.text;
     text && text.style('display', 'block').text(smartText.text);
     return this;
 };
