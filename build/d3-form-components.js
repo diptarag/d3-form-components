@@ -1313,6 +1313,9 @@ var PX$1 = 'px';
 var DEFAULT_TIMEOUT = 300;
 var d3$1 = window.d3;
 var instances$1 = {};
+var touchMap = {
+        click: 'touchend'
+    };
 
 function getSmartLabelInstance$1() {
     return instances$1.smartLabel || (instances$1.smartLabel = new SmartLabel(new Date().getTime()));
@@ -1326,7 +1329,8 @@ function ListContainer (groupId) {
 
 ListContainer.prototype.init = function (containerElem) {
     var defaultStyle,
-        self = this;
+        self = this,
+        supportsTouch = "createTouch" in document;
 
     this.container = d3$1.select(containerElem);
     this.container.node().groupId = this.groupId;
@@ -1337,14 +1341,17 @@ ListContainer.prototype.init = function (containerElem) {
         display: 'none'
     };
 
-    self.on('mouseout', function (d) {
-        var e = d3$1.event.toElement || d3$1.event.relatedTarget;
+    if (!supportsTouch) {
+        self.on('mouseout', function (d) {
+            var e = d3$1.event.toElement || d3$1.event.relatedTarget;
 
-        if (e && (e.groupId === d.groupId)) {
-            return;
-        }
-        self.hide();
-    }, 'default');
+            if (e && (e.groupId === d.groupId)) {
+                return;
+            }
+            self.hide();
+        }, 'default');
+    }
+
 
     setStyle(this.container, defaultStyle);
 };
@@ -1559,6 +1566,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             d.parentContainer && d.parentContainer.show();
             d.interactivity !== false && d.listItem.classed(hoverClass, true);
             subContainer && subContainer.show(this);
+            d3$1.event.stopPropagation();
         },
         listItemHoverOut = function (d) {
             var config = self.config,
@@ -1567,14 +1575,25 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 hoverClass = states.hover;
 
             d.interactivity !== false && d.listItem.classed(hoverClass, false);
-            d.subContainer && d.subContainer.hide();
+            if (!supportsTouch) {
+                d.subContainer && d.subContainer.hide();
+            }
+            d3$1.event.stopPropagation();
         },
         filterChildNodes = function () {
             return this.parentNode === parentContainer.node();
         },
         listItemClicked = function (d) {
-            d.parentContainer && d.parentContainer.hide(1);
-            d.subContainer && d.subContainer.hide(1);
+            if (supportsTouch) {
+                if (!d.subContainer) {
+                    d.parentContainer && d.parentContainer.hide(1);
+                }
+            }
+            else {
+                d.parentContainer && d.parentContainer.hide(1);
+                d.subContainer && d.subContainer.hide(1);
+            }
+            d3$1.event.stopPropagation();
         },
         initContainer = function (d) {
             d.container.init(this);
@@ -1605,7 +1624,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         arrowUnicode = '&#9666;',
         spans,
         padding,
-        smartLabel = getSmartLabelInstance$1();
+        smartLabel = getSmartLabelInstance$1(),
+        supportsTouch = 'createTouch' in document;
 
     if (!containerData[contIndex]) {
         containerData[contIndex] = {
@@ -1736,14 +1756,25 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 });
             }
 
-            listItem.on('mouseover.default', listItemHover);
-            listItem.on('mouseout.default', listItemHoverOut);
-            listItem.on('click.default', listItemClicked);
+            if (d.divider !== true) {
+                if (supportsTouch) {
+                    listItem.on('touchstart.hover', listItemHover);
+                    listItem.on('touchend.hoverout', listItemHoverOut);
+                    listItem.on('touchend.click', listItemClicked);
+                }
+                else {
+                    listItem.on('mouseover.default', listItemHover);
+                    listItem.on('mouseout.default', listItemHoverOut);
+                    listItem.on('click.default', listItemClicked);
+                }
 
-            if (action && typeof handler === 'function') {
-                // Attach event listener on dropdown list items
-                listItem.on(action + '.custom', handler);
+                if (action && typeof handler === 'function') {
+                    // Attach event listener on dropdown list items
+                    supportsTouch ? listItem.on(touchMap[action] + '.custom', handler) :
+                        listItem.on(action + '.custom', handler);
+                }
             }
+
 
         });
 
@@ -1758,7 +1789,12 @@ DropDownMenu.prototype.show = function (target) {
 };
 
 DropDownMenu.prototype.hide = function () {
-    this.listItems.length !== 0 && this.container.hide();
+    if (this.listItems.length !== 0) {
+        this.container.hide();
+        this.container.getContainer().selectAll('div').each(function (d) {
+            d.subContainer && d.subContainer.hide();
+        });
+    }
 };
 
 DropDownMenu.prototype.toggleVisibility = function () {
@@ -5432,6 +5468,17 @@ var getDefaultDropDownConf = function () {
         };
     };
 var instances = {};
+var isDescendant = function isDescendant(parent, child) {
+        var node = child.parentNode;
+        while (node != null) {
+            if (node === parent) {
+                return true;
+            }
+            node = node.parentNode;
+        }
+        return false;
+    };
+
 
 function getSmartLabelInstance() {
     return instances.smartLabel || (instances.smartLabel = new SmartLabel(new Date().getTime()));
@@ -5665,27 +5712,29 @@ Button.prototype.bindEventListeners = function () {
 Button.prototype.postDraw = function () {
     this.addHoverEvents();
     this.bindEventListeners();
+    this.attachTooltip();
 };
 
 
 Button.prototype.addHoverEvents = function () {
     var self = this;
 
-    self.on('mouseover', function () {
+    self.on('mouseover', function hover() {
         self.setState('hover');
     }, 'default');
 
-    self.on('mouseout', function () {
+    self.on('mouseout', function hoverout() {
         self.removeState('hover');
     }, 'default');
 
-    this.attachTooltip();
 };
 
 Button.prototype.attachTooltip = function () {
     var tooltip = this.tooltip,
         buttonGroup = this.buttonGroup,
-        toolText = this.config.toolText;
+        toolText = this.config.toolText,
+        elements = this.elements,
+        bBox = this.getBBox();
 
     if (toolText !== undefined) {
         if (!tooltip) {
@@ -5695,6 +5744,25 @@ Button.prototype.attachTooltip = function () {
         }
 
         buttonGroup.data([[null, toolText]]).call(tooltip);
+
+        buttonGroup.on('touchstart.d3-button-tooltip', function () {
+            d3.event.preventDefault();
+            d3.event.stopPropagation();
+            tooltip.show([bBox.x + 10, bBox.y - bBox.height - 30]);
+        });
+
+        buttonGroup.on('touchmove.d3-button-tooltip', function () {
+            var event$$1 = d3.event;
+            d3.event.preventDefault();
+            d3.event.stopPropagation();
+            tooltip.show([bBox.x + 10, bBox.y - bBox.height - 30]);
+        });
+
+        buttonGroup.on('touchend.d3-button-tooltip', function () {
+            d3.event.preventDefault();
+            d3.event.stopPropagation();
+            tooltip.hide();
+        });
     }
 };
 
@@ -5711,7 +5779,36 @@ Button.prototype.classed = function (className, value) {
 };
 
 Button.prototype.on = function (eventType, fn, typename) {
-    this.buttonGroup.on(eventType + '.' + (typename || 'custom'), fn);
+    var supportsTouch = "createTouch" in document;
+    if (supportsTouch) {
+        if (eventType === 'mouseover') {
+            this.buttonGroup.on('touchstart.mouseover', function () {
+                d3.event.preventDefault();
+                d3.event.stopPropagation();
+                fn();
+            });
+        }
+
+        if (eventType === 'mouseout') {
+            this.buttonGroup.on('touchend.mouseout', function () {
+                d3.event.preventDefault();
+                d3.event.stopPropagation();
+                fn();
+            });
+        }
+
+        if (eventType === 'click') {
+            this.buttonGroup.on('touchend.click', function () {
+                d3.event.preventDefault();
+                d3.event.stopPropagation();
+                fn();
+            });
+        }
+    }
+    else {
+        this.buttonGroup.on(eventType + '.' + (typename || 'custom'), fn);
+    }
+
     return this;
 };
 
@@ -5874,12 +5971,11 @@ InputButton.prototype.draw = function (x, y, group) {
             left: bBox.x + PX,
             width: width - (padLeft + padRight) - (config.icon ? arrowWidth : 0) + 3 + PX,
             height: (bBox.height || height) + PX,
-            '-webkit-apperance': 'none',
             outline: 'none',
             margin: '0px',
             border: '0px',
             padding: '0px',
-            display: 'none'
+            visibility: 'hidden'
         };
         inputBox.attr('placeholder', placeholder);
         inputBox.classed(inputClass, true);
@@ -5939,7 +6035,6 @@ InputButton.prototype.draw = function (x, y, group) {
 
     self.config.hasInputField !== false && self.on('blur', self.blur.bind(self), 'default');
 
-    this.postDraw();
 
     this.getBBox = function () {
         return {
@@ -5949,6 +6044,8 @@ InputButton.prototype.draw = function (x, y, group) {
             height: height
         };
     };
+
+    this.postDraw();
 
     return self;
 };
@@ -5978,7 +6075,7 @@ InputButton.prototype.blur = function (textStr) {
         style = getSmartComputedStyle(this.parentGroup, this.getIndividualClassNames(this.getClassName()).text),
         smartText;
 
-    inputBox && inputBox.style('display', 'none');
+    inputBox && inputBox.style('visibility', 'hidden');
     smartLabel.setStyle(style);
     smartText = smartLabel.getSmartText(value, maxWidth, config.height);
 
@@ -5994,7 +6091,7 @@ InputButton.prototype.edit = function () {
         len = node.value.length;
 
     if (inputBox) {
-        inputBox.style('display', 'block');
+        inputBox.style('visibility', 'visible');
         node.setSelectionRange(len, len);
         node.focus();
         elements.text.style('display', 'none');
@@ -6034,6 +6131,10 @@ InputButton.prototype.on = function (eventType, fn, typename) {
             break;
         case 'onIconClick':
             this.elements.iconTracker && this.elements.iconTracker.on('click', fn);
+            this.elements.iconTracker && this.elements.iconTracker.on('touchend', function () {
+                d3.event.preventDefault();
+                fn();
+            });
             break;
         default:
             this.elements.inputFieldTracker && this.elements.inputFieldTracker.on(eventName, fn);
@@ -6201,6 +6302,16 @@ SelectButton.prototype.draw = function (x, y, group) {
         .classed(arrowClass, true).attr('pointer-events', 'none');
 
     this.buttonGroup = buttonGroup;
+
+    this.getBBox = function () {
+        return {
+            x: x,
+            y: y,
+            width: width,
+            height: height
+        };
+    };
+
     this.postDraw();
     return this;
 };
@@ -6244,8 +6355,8 @@ SelectButton.prototype.value = function (value) {
         containerElem,
         selectedItem = self.selectedItem;
 
-    if (value === undefined && selectedItem) {
-        return selectedItem.datum().value;
+    if (value === undefined) {
+        return selectedItem && selectedItem.datum().value;
     }
 
     containerElem = container.getContainer();
@@ -6291,7 +6402,7 @@ SelectButton.prototype.createMenu = function (containerElem) {
     dropDownMenu$$1.setMeasurement({
         top: bBox.y + bBox.height,
         left: bBox.x,
-        width: bBox.width
+        width: bBox.width - 1
     });
 
     node.groupId = dropDownMenu$$1.groupId;
@@ -6325,17 +6436,25 @@ SelectButton.prototype.postDraw = function () {
     });
 
     this.createMenu(container);
+
+    d3.select('html').on('touchend.' + new Date().getTime(), function () {
+        self.dropDownMenu.hide();
+    });
 };
 
 SelectButton.prototype.add = function (list) {
     var dropDownMenu$$1 = this.dropDownMenu,
+        config = this.config,
+        dropDownMenuConf = config.dropDownMenu || {},
+        direction = dropDownMenuConf.direction,
         self = this,
         listContainer,
         dimensions,
         bBox = this.elements.container.node().getBBox(),
         clientBox = this.parentGroup.node().ownerSVGElement.getBoundingClientRect(),
         viewPortHeight = clientBox.top + clientBox.height,
-        container;
+        container,
+        supportsTouch = "createTouch" in document;
 
     list.length !==0 && dropDownMenu$$1.add(list);
     container = dropDownMenu$$1.getFirstContainer();
@@ -6345,27 +6464,53 @@ SelectButton.prototype.add = function (list) {
 
         listContainer = container.getContainer();
         dimensions = container.getDimensions();
-        if (bBox.y + bBox.height + dimensions.height > viewPortHeight) {
+
+        if (direction === 'down') {
             dropDownMenu$$1.setMeasurement({
-                top: bBox.y - dimensions.height,
+                top: bBox.y + bBox.height,
                 left: bBox.x,
-                width: bBox.width
+                width: bBox.width - 1
             });
         }
         else {
             dropDownMenu$$1.setMeasurement({
-                top: bBox.y + bBox.height,
+                top: bBox.y - dimensions.height,
                 left: bBox.x,
-                width: bBox.width
+                width: bBox.width - 1
+            });
+        }
+        // if (bBox.y + bBox.height + dimensions.height > viewPortHeight) {
+        //     dropDownMenu.setMeasurement({
+        //         top: bBox.y - dimensions.height,
+        //         left: bBox.x,
+        //         width: bBox.width - 1
+        //     });
+        // }
+        // else {
+        //     dropDownMenu.setMeasurement({
+        //         top: bBox.y + bBox.height,
+        //         left: bBox.x,
+        //         width: bBox.width - 1
+        //     });
+        // }
+
+        if (supportsTouch) {
+            listContainer.selectAll('div').on('touchend.selected', this.onSelect()).each(function (d, i) {
+                if (i === 0) {
+                    self.selectedItem && self.selectItem(self.selectedItem, false);
+                    self.selectedItem = self.selectItem(select(this), true);
+                }
+            });
+        }
+        else {
+            listContainer.selectAll('div').on('click.selected', this.onSelect()).each(function (d, i) {
+                if (i === 0) {
+                    self.selectedItem && self.selectItem(self.selectedItem, false);
+                    self.selectedItem = self.selectItem(select(this), true);
+                }
             });
         }
 
-        listContainer.selectAll('div').on('click.selected', this.onSelect()).each(function (d, i) {
-            if (i === 0) {
-                self.selectedItem && self.selectItem(self.selectedItem, false);
-                self.selectedItem = self.selectItem(select(this), true);
-            }
-        });
     }
 };
 
@@ -6392,7 +6537,7 @@ SelectButton.prototype.selectItem = function (item, value) {
         listItem = dropDownMenuConf.listItem || {},
         states = listItem.states || {};
 
-    return item.classed(states.selected, value);
+    return item && item.classed(states.selected, value);
 };
 
 SelectButton.prototype.onSelect = function () {
@@ -6461,7 +6606,8 @@ ButtonWithContextMenu.prototype.postDraw = function () {
     Button.prototype.postDraw.call(this);
     var self = this,
         bBox = self.getBBox(),
-        measurement = {};
+        measurement = {},
+        supportsTouch = 'createTouch' in document;
 
     this.on('mouseover', function () {
         var listContainer = self.dropDownMenu.getFirstContainer(),
@@ -6474,10 +6620,45 @@ ButtonWithContextMenu.prototype.postDraw = function () {
         self.dropDownMenu.show(measurement);
     });
 
-    this.on('mouseout', function () {
-        self.dropDownMenu.hide();
+    if (!supportsTouch) {
+        this.on('mouseout', function () {
+            self.dropDownMenu.hide();
+        });
+    }
+
+    this.on('touchend', function () {
+        var listContainer = self.dropDownMenu.getFirstContainer(),
+            dimensions = listContainer.getDimensions(),
+            width;
+
+        width = dimensions.width;
+        measurement.top = bBox.y + bBox.height + 3;
+        measurement.left = bBox.x + bBox.width - width;
+        self.dropDownMenu.show(measurement);
+        self.removeState('hover');
     });
+
+    if (supportsTouch) {
+        d3.select('html').on('touchstart.' + new Date().getTime(), function () {
+            var target = d3.event.target,
+                container = self.elements.container.node();
+
+            if (!isDescendant(container, target)) {
+                self.dropDownMenu.hide();
+            }
+        });
+        d3.select('html').on('click.' + new Date().getTime(), function () {
+            var target = d3.event.target,
+                container = self.elements.container.node();
+
+            if (!isDescendant(container, target)) {
+                self.dropDownMenu.hide();
+            }
+        });
+    }
+
 };
+
 
 ButtonWithContextMenu.prototype.showListItem = function (id) {
     var dropDown = this.dropDownMenu,

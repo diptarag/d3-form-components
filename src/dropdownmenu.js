@@ -7,7 +7,10 @@ import {isDIV} from "./utils";
 var PX = 'px',
     DEFAULT_TIMEOUT = 300,
     d3 = window.d3,
-    instances = {};
+    instances = {},
+    touchMap = {
+        click: 'touchend'
+    };
 
 function getSmartLabelInstance() {
     return instances.smartLabel || (instances.smartLabel = new SmartLabel(new Date().getTime()));
@@ -21,7 +24,8 @@ function ListContainer (groupId) {
 
 ListContainer.prototype.init = function (containerElem) {
     var defaultStyle,
-        self = this;
+        self = this,
+        supportsTouch = "createTouch" in document;
 
     this.container = d3.select(containerElem);
     this.container.node().groupId = this.groupId;
@@ -32,14 +36,17 @@ ListContainer.prototype.init = function (containerElem) {
         display: 'none'
     };
 
-    self.on('mouseout', function (d) {
-        var e = d3.event.toElement || d3.event.relatedTarget;
+    if (!supportsTouch) {
+        self.on('mouseout', function (d) {
+            var e = d3.event.toElement || d3.event.relatedTarget;
 
-        if (e && (e.groupId === d.groupId)) {
-            return;
-        }
-        self.hide();
-    }, 'default');
+            if (e && (e.groupId === d.groupId)) {
+                return;
+            }
+            self.hide();
+        }, 'default');
+    }
+
 
     setStyle(this.container, defaultStyle);
 };
@@ -254,6 +261,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             d.parentContainer && d.parentContainer.show();
             d.interactivity !== false && d.listItem.classed(hoverClass, true);
             subContainer && subContainer.show(this);
+            d3.event.stopPropagation();
         },
         listItemHoverOut = function (d) {
             var config = self.config,
@@ -262,14 +270,25 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 hoverClass = states.hover;
 
             d.interactivity !== false && d.listItem.classed(hoverClass, false);
-            d.subContainer && d.subContainer.hide();
+            if (!supportsTouch) {
+                d.subContainer && d.subContainer.hide();
+            }
+            d3.event.stopPropagation();
         },
         filterChildNodes = function () {
             return this.parentNode === parentContainer.node();
         },
         listItemClicked = function (d) {
-            d.parentContainer && d.parentContainer.hide(1);
-            d.subContainer && d.subContainer.hide(1);
+            if (supportsTouch) {
+                if (!d.subContainer) {
+                    d.parentContainer && d.parentContainer.hide(1);
+                }
+            }
+            else {
+                d.parentContainer && d.parentContainer.hide(1);
+                d.subContainer && d.subContainer.hide(1);
+            }
+            d3.event.stopPropagation();
         },
         initContainer = function (d) {
             d.container.init(this);
@@ -300,7 +319,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         arrowUnicode = '&#9666;',
         spans,
         padding,
-        smartLabel = getSmartLabelInstance();
+        smartLabel = getSmartLabelInstance(),
+        supportsTouch = 'createTouch' in document;
 
     if (!containerData[contIndex]) {
         containerData[contIndex] = {
@@ -431,14 +451,25 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 });
             }
 
-            listItem.on('mouseover.default', listItemHover);
-            listItem.on('mouseout.default', listItemHoverOut);
-            listItem.on('click.default', listItemClicked);
+            if (d.divider !== true) {
+                if (supportsTouch) {
+                    listItem.on('touchstart.hover', listItemHover);
+                    listItem.on('touchend.hoverout', listItemHoverOut);
+                    listItem.on('touchend.click', listItemClicked);
+                }
+                else {
+                    listItem.on('mouseover.default', listItemHover);
+                    listItem.on('mouseout.default', listItemHoverOut);
+                    listItem.on('click.default', listItemClicked);
+                }
 
-            if (action && typeof handler === 'function') {
-                // Attach event listener on dropdown list items
-                listItem.on(action + '.custom', handler);
+                if (action && typeof handler === 'function') {
+                    // Attach event listener on dropdown list items
+                    supportsTouch ? listItem.on(touchMap[action] + '.custom', handler) :
+                        listItem.on(action + '.custom', handler);
+                }
             }
+
 
         });
 
@@ -453,7 +484,12 @@ DropDownMenu.prototype.show = function (target) {
 };
 
 DropDownMenu.prototype.hide = function () {
-    this.listItems.length !== 0 && this.container.hide();
+    if (this.listItems.length !== 0) {
+        this.container.hide();
+        this.container.getContainer().selectAll('div').each(function (d) {
+            d.subContainer && d.subContainer.hide();
+        });
+    }
 };
 
 DropDownMenu.prototype.toggleVisibility = function () {
