@@ -150,6 +150,9 @@ Button.prototype.getLogicalSpace = function () {
             width: 0,
             height: 0
         },
+        margin = config.margin,
+        hMargin = margin.left + margin.right,
+        vMargin = margin.top + margin.bottom,
         style = getSmartComputedStyle(select('svg'), textClass),
         fontSize = style.fontSize;
 
@@ -158,9 +161,9 @@ Button.prototype.getLogicalSpace = function () {
     typeof symbol === 'string' && (dimensions = getTextDimensions(symbol, textClass, select('svg'), smartLabel));
 
     config.width = config.width === undefined ?
-        Math.max(dimensions.width + padLeft + padRight, config.width || 0) : config.width;
+        Math.max(dimensions.width + padLeft + padRight + hMargin, config.width || 0) : config.width;
     config.height = config.height === undefined ?
-        Math.max(dimensions.height + padTop + padRight, config.height || 0) : config.height;
+        Math.max(dimensions.height + padTop + padRight + vMargin, config.height || 0) : config.height;
     return (this.logicalSpace = {
         width: config.width,
         height: config.height

@@ -6649,9 +6649,11 @@ ButtonWithContextMenu.prototype.postDraw = function () {
         });
         d3.select('html').on('click.' + new Date().getTime(), function () {
             var target = d3.event.target,
-                container = self.elements.container.node();
+                container = self.elements.container.node(),
+                dropDownMenu$$1 = self.dropDownMenu,
+                pNode = dropDownMenu$$1.parentContainer.node();
 
-            if (!isDescendant(container, target)) {
+            if (!isDescendant(container, target) && !isDescendant(pNode, target)) {
                 self.dropDownMenu.hide();
             }
         });
