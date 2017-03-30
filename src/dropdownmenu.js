@@ -1,7 +1,7 @@
 
 import {default as SmartLabel} from "fusioncharts-smartlabel";
 import {mergeConf, setStyle, isDIV} from "./utils";
-
+import {select, event} from "d3";
 if (ENV !== 'production') {
     document && document.write(
         '<script src="http://' + (location.host || 'localhost').split(':')[0] +
@@ -35,7 +35,7 @@ ListContainer.prototype.init = function (containerElem) {
         self = this,
         supportsTouch = "createTouch" in document;
 
-    this.container = d3.select(containerElem);
+    this.container = select(containerElem);
     this.container.node().groupId = this.groupId;
     defaultStyle = {
         position : 'absolute',
@@ -46,7 +46,7 @@ ListContainer.prototype.init = function (containerElem) {
 
     if (!supportsTouch) {
         self.on('mouseout', function (d) {
-            var e = d3.event.toElement || d3.event.relatedTarget;
+            var e =event.toElement ||event.relatedTarget;
 
             if (e && (e.groupId === d.groupId)) {
                 return;
@@ -270,7 +270,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             d.interactivity !== false && d.listItem.classed(hoverClass, true);
             subContainer && subContainer.show(this);
             //@todo due to this line hover out was not firing check whether this is working fine in touch devices
-            // d3.event.stopPropagation();
+            //event.stopPropagation();
         },
         listItemHoverOut = function (d) {
             var config = self.config,
@@ -283,7 +283,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 d.subContainer && d.subContainer.hide();
             }
             //@todo due to this line hover out was not firing check whether this is working fine in touch devices
-            // d3.event.stopPropagation();
+            //event.stopPropagation();
         },
         filterChildNodes = function () {
             return this.parentNode === parentContainer.node();
@@ -298,7 +298,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 d.parentContainer && d.parentContainer.hide(1);
                 d.subContainer && d.subContainer.hide(1);
             }
-            d3.event.stopPropagation();
+           event.stopPropagation();
         },
         initContainer = function (d) {
             d.container.init(this);
@@ -398,7 +398,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             className = d.className;
             padding = d.padding || {};
 
-            listItem = d3.select(this).classed(listItemClass, true);
+            listItem = select(this).classed(listItemClass, true);
             className && listItem.classed(d.className, true);
 
             d.listItem = listItem;
@@ -429,7 +429,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
 
                 spans = listItem.selectAll('span').data(data);
                 spans.enter().append('span').merge(spans).each(function (d) {
-                    setStyle(d3.select(this).html(d.html), d.style);
+                    setStyle(select(this).html(d.html), d.style);
                 });
 
                 if (!containerData[contIndex]) {
@@ -478,7 +478,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
 
                 spans = listItem.selectAll('span').data(data);
                 spans.enter().append('span').merge(spans).each(function (d) {
-                    setStyle(d3.select(this).html(d.html), d.style);
+                    setStyle(select(this).html(d.html), d.style);
                 });
 
                 d.divider !== true && setStyle(listItem, {
@@ -560,9 +560,9 @@ DropDownMenu.prototype.toggleIconVisibility = function (id) {
             container.getContainer().selectAll('div').each(function (d) {
                 var element;
                 if (d.id === id) {
-                    element = d3.select(this);
+                    element = select(this);
                     element.selectAll('span').each(function (d) {
-                        var element = d3.select(this);
+                        var element = select(this);
                         if (d.type === 'icon') {
                             visible = !!d.visible;
                             visible ? element.style('visibility', 'hidden') : element.style('visibility', 'visible');

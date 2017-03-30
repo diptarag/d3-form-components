@@ -1,4 +1,6 @@
 import {mergeConf, setAttrs, setStyle} from './utils';
+import {select} from "d3";
+
 var __proto,
     defMargin = {
         left: 0,
@@ -90,7 +92,7 @@ __proto.createDialogBox = function () {
         padding = config.padding || defPad;
 
     if (!container) {
-        container = this.container = d3.select(parentContainer).append('div');
+        container = this.container = select(parentContainer).append('div');
     }
 
     container.classed(className, true);
@@ -122,14 +124,14 @@ __proto.createRowsRecursively = function (container, components) {
             padding = d.padding || defPad;
 
         if (d.cols) {
-            self.createRowsRecursively(d3.select(this), d.cols);
+            self.createRowsRecursively(select(this), d.cols);
         }
 
         if (d.elements) {
-            self.createElements(d3.select(this), d.elements);
+            self.createElements(select(this), d.elements);
         }
 
-        setStyle(d3.select(this), {
+        setStyle(select(this), {
             'margin-left': px(margin.left),
             'margin-right': px(margin.right),
             'margin-top': px(margin.top),
@@ -139,7 +141,7 @@ __proto.createRowsRecursively = function (container, components) {
             'padding-top': px(padding.top),
             'padding-bottom': px(padding.bottom)
         });
-        setStyle(d3.select(this), d.style);
+        setStyle(select(this), d.style);
     });
 };
 
@@ -157,7 +159,7 @@ __proto.createElements = function (selection, elementArr) {
         elementSelection = selection.selectAll(key).data(elements);
         elementSelectionEnter = elementSelection.enter();
         elementSelectionEnter.append(key).merge(elementSelection).each(function (data) {
-            var element = d3.select(this);
+            var element = select(this);
             setAttrs(element, data.attrs);
             setStyle(element, getMargin(data.margin || defMargin));
             data.events && attachEvents(element, data.events);

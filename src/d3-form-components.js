@@ -3,8 +3,12 @@ import {default as SmartLabel} from "fusioncharts-smartlabel";
 import {mergeConf, getTextDimensions, setStyle, setAttrs, getIndividualClassNames,
     getSmartComputedStyle} from "./utils";
 import {dropDownMenu as DropDownMenu} from "./dropdownmenu";
-import {select} from "d3-selection";
-import {transition} from "d3-transition";
+// import {select, event} from "d3-selection";
+// import {tooltip} from "d3-tooltip";
+// import {transition} from "d3-transition";
+import {select, event, transition} from "d3";
+import {default as tooltip} from "d3-tooltip";
+
 /*eslint-disable */
 
 
@@ -331,29 +335,29 @@ Button.prototype.attachTooltip = function () {
 
     if (toolText !== undefined) {
         if (!tooltip) {
-            tooltip = this.tooltip = d3.tooltip().namespace(this.config.namespace)
-                .attachTo(d3.select(this.parentGroup.node().ownerSVGElement))
+            tooltip = this.tooltip = tooltip().namespace(this.config.namespace)
+                .attachTo(select(this.parentGroup.node().ownerSVGElement))
                 .offset({x: 15, y: 15});
         }
 
         buttonGroup.data([[null, toolText]]).call(tooltip);
 
         buttonGroup.on('touchstart.d3-button-tooltip', function () {
-            d3.event.preventDefault();
-            d3.event.stopPropagation();
+            event.preventDefault();
+            event.stopPropagation();
             tooltip.show([bBox.x + 10, bBox.y - bBox.height - 30]);
         });
 
         buttonGroup.on('touchmove.d3-button-tooltip', function () {
-            var event = d3.event;
-            d3.event.preventDefault();
-            d3.event.stopPropagation();
+            var event = event;
+            event.preventDefault();
+            event.stopPropagation();
             tooltip.show([bBox.x + 10, bBox.y - bBox.height - 30]);
         });
 
         buttonGroup.on('touchend.d3-button-tooltip', function () {
-            d3.event.preventDefault();
-            d3.event.stopPropagation();
+            event.preventDefault();
+            event.stopPropagation();
             tooltip.hide();
         });
     }
@@ -376,24 +380,24 @@ Button.prototype.on = function (eventType, fn, typename) {
     if (supportsTouch) {
         if (eventType === 'mouseover') {
             this.buttonGroup.on('touchstart.mouseover', function () {
-                d3.event.preventDefault();
-                d3.event.stopPropagation();
+                event.preventDefault();
+                event.stopPropagation();
                 fn();
             });
         }
 
         if (eventType === 'mouseout') {
             this.buttonGroup.on('touchend.mouseout', function () {
-                d3.event.preventDefault();
-                d3.event.stopPropagation();
+                event.preventDefault();
+                event.stopPropagation();
                 fn();
             });
         }
 
         if (eventType === 'click') {
             this.buttonGroup.on('touchend.click', function () {
-                d3.event.preventDefault();
-                d3.event.stopPropagation();
+                event.preventDefault();
+                event.stopPropagation();
                 fn();
             });
         }
@@ -747,7 +751,7 @@ InputButton.prototype.on = function (eventType, fn, typename) {
         case 'onIconClick':
             this.elements.iconTracker && this.elements.iconTracker.on('click', fn);
             this.elements.iconTracker && this.elements.iconTracker.on('touchend', function () {
-                d3.event.preventDefault();
+                event.preventDefault();
                 fn();
             });
             break;
@@ -1056,7 +1060,7 @@ SelectButton.prototype.postDraw = function () {
 
     this.createMenu(container);
 
-    d3.select('html').on('touchend.' + new Date().getTime(), function () {
+    select('html').on('touchend.' + new Date().getTime(), function () {
         self.dropDownMenu.hide();
     });
 };
@@ -1258,16 +1262,16 @@ ButtonWithContextMenu.prototype.postDraw = function () {
     });
 
     if (supportsTouch) {
-        d3.select('html').on('touchstart.' + new Date().getTime(), function () {
-            var target = d3.event.target,
+        select('html').on('touchstart.' + new Date().getTime(), function () {
+            var target = event.target,
                 container = self.elements.container.node();
 
             if (!isDescendant(container, target)) {
                 self.dropDownMenu.hide();
             }
         });
-        d3.select('html').on('click.' + new Date().getTime(), function () {
-            var target = d3.event.target,
+        select('html').on('click.' + new Date().getTime(), function () {
+            var target = event.target,
                 container = self.elements.container.node();
 
             if (!isDescendant(container, target)) {
