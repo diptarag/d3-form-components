@@ -7,12 +7,6 @@ import {select} from "d3-selection";
 import {transition} from "d3-transition";
 /*eslint-disable */
 
-if (ENV !== 'production') {
-    document && document.write(
-        '<script src="http://' + (location.host || 'localhost').split(':')[0] +
-        ':35729/livereload.js?snipver=1"></' + 'script>'
-    );
-}
 
 /*eslint-enable */
 var PX = 'px',
