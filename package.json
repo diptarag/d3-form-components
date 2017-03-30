@@ -2,7 +2,7 @@
   "name": "d3-form-components",
   "version": "1.0.0",
   "description": "Creates buttons and dropdown menus",
-  "main": "index.js",
+  "main": "build/d3-form-components.js",
   "directories": {
     "test": "test"
   },
