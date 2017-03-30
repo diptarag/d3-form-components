@@ -1,13 +1,10 @@
 /* jshint ignore:start */
 import {default as SmartLabel} from "fusioncharts-smartlabel";
-import {mergeConf, getTextDimensions} from "./utils";
-import {setStyle} from "./utils";
-import {setAttrs} from "./utils";
-import {getSmartComputedStyle} from "./utils";
+import {mergeConf, getTextDimensions, setStyle, setAttrs, getIndividualClassNames,
+    getSmartComputedStyle} from "./utils";
 import {dropDownMenu as DropDownMenu} from "./dropdownmenu";
 import {select} from "d3-selection";
 import {transition} from "d3-transition";
-import { interpolateString } from 'd3-interpolate';
 /*eslint-disable */
 
 if (ENV !== 'production') {
@@ -16,25 +13,10 @@ if (ENV !== 'production') {
         ':35729/livereload.js?snipver=1"></' + 'script>'
     );
 }
+
 /*eslint-enable */
 var PX = 'px',
     BLANK = '',
-    classRules = {
-        button: ['container', 'text', 'symbol'],
-        inputButton: ['container', 'text', 'input', 'icon'],
-        selectButton: ['container', 'text', 'arrow']
-    },
-    getIndividualClassNames = function (className, component) {
-        var rules = classRules[component],
-            classNames = {},
-            i,
-            len = rules.length;
-
-        for (i = 0; i < len; i++) {
-            classNames[rules[i]] = className + '-' + rules[i];
-        }
-        return classNames;
-    },
     getDefaultDropDownConf = function () {
         return {
             container: {
@@ -43,8 +25,12 @@ var PX = 'px',
             listItem: {
                 className: 'd3-dropdownlistitem',
                 states: {
-                    hover: 'd3-dropdownlistitem-state-hover',
-                    selected: 'd3-dropdownlistitem-state-selected'
+                    hover: {
+                        className: 'd3-dropdownlistitem-state-hover'
+                    },
+                    selected: {
+                        className: 'd3-dropdownlistitem-state-selected'
+                    }
                 }
             }
         };
@@ -73,9 +59,15 @@ function Button (symbol) {
         className: 'd3-button',
         specificClassName: 'd3-button',
         states: {
-            hover: 'd3-button-state-hover',
-            selected: 'd3-button-state-selected',
-            disabled: 'd3-button-state-disabled'
+            hover: {
+                className: 'd3-button-state-hover'
+            },
+            selected: {
+                className: 'd3-button-state-selected'
+            },
+            disabled: {
+                className: 'd3-button-state-disabled'
+            }
         },
         padding: {
             top: 4,
@@ -98,6 +90,10 @@ function Button (symbol) {
     this.elements = {};
 }
 
+Button.prototype.getConfig = function (key) {
+    return this.config[key];
+};
+
 Button.prototype.namespace = function (namespace) {
     var config = this.config,
         states = config.states,
@@ -108,7 +104,7 @@ Button.prototype.namespace = function (namespace) {
     config.className = namespace + '-' + config.className;
     config.specificClassName = this.config.className;
     for (key in states) {
-        states[key] = namespace + '-' + states[key];
+        states[key].className = namespace + '-' + states[key].className;
     }
 };
 
@@ -118,8 +114,12 @@ Button.prototype.appendSelector = function (selector) {
     this.config.selector = selector;
     this.config.specificClassName = this.config.className + '-' + selector;
     for (key in states) {
-        states[key] = states[key] + '-' + selector;
+        states[key].className = states[key].className + '-' + selector;
     }
+};
+
+Button.prototype.getStateClassName = function (state) {
+    return this.config.states[state].className;
 };
 
 Button.prototype.dispose = function () {
@@ -168,6 +168,20 @@ Button.prototype.getLogicalSpace = function () {
         width: config.width,
         height: config.height
     });
+};
+
+Button.prototype.getWidth = function () {
+    if (!this.logicalSpace) {
+        this.logicalSpace = this.getLogicalSpace();
+    }
+    return (this.logicalSpace && this.logicalSpace.width) || 0;
+};
+
+Button.prototype.getHeight = function () {
+    if (!this.logicalSpace) {
+        this.logicalSpace = this.getLogicalSpace();
+    }
+    return (this.logicalSpace && this.logicalSpace.height) || 0;
 };
 
 Button.prototype.getIndividualClassNames = function (className) {
@@ -420,7 +434,7 @@ Button.prototype.getBoundElement = function () {
 Button.prototype.setState = function (state) {
     var config = this.config,
         states = config.states,
-        className = states[state];
+        className = states[state].className;
 
     state === 'disabled' && this.disable(true);
     this.classed(className, true);
@@ -429,7 +443,7 @@ Button.prototype.setState = function (state) {
 Button.prototype.removeState = function (state) {
     var config = this.config,
         states = config.states,
-        className = states[state];
+        className = states[state].className;
 
     state === 'disabled' && this.disable(false);
     this.classed(className, false);
@@ -439,14 +453,33 @@ Button.prototype.attachEventHandlers = function (eventMap) {
     this.eventMap = eventMap;
 };
 
+Button.prototype.getStateClassNames = function () {
+    var states = this.config.states,
+        classNames = {},
+        key;
+
+    for (key in states) {
+        classNames[key] = states[key].className;
+    }
+
+    return classNames;
+};
+
 function InputButton () {
     Button.apply(this, arguments);
     this.setConfig({
         className: 'd3-inputbutton',
+        specificClassName: 'd3-inputbutton',
         states: {
-            hover: 'd3-inputbutton-state-hover',
-            selected: 'd3-inputbutton-state-selected',
-            disabled: 'd3-inputbutton-state-disabled'
+            hover: {
+                className: 'd3-inputbutton-state-hover'
+            },
+            selected: {
+                className: 'd3-inputbutton-state-selected'
+            },
+            disabled: {
+                className: 'd3-inputbutton-state-disabled'
+            }
         },
         padding: {
             left: 10
@@ -545,9 +578,8 @@ InputButton.prototype.draw = function (x, y, group) {
     setAttrs(textEl, textAttrs);
 
     textEl.classed(textClass, true);
-    textEl.text(this.symbol || BLANK);
-
     bBox = textEl.node().getBBox();
+    textEl.text(this.symbol || BLANK);
     if (hasInputField) {
         !inputBox && (inputBox = elements.inputBox = select(container).append('input'));
         styleObj = {
@@ -704,6 +736,10 @@ InputButton.prototype.text = function (text) {
     return value;
 };
 
+InputButton.prototype.value = function () {
+    return this.text();
+};
+
 InputButton.prototype.on = function (eventType, fn, typename) {
     var inputBox = this.elements.inputBox,
         eventName = eventType + '.' + (typename || 'custom');
@@ -756,8 +792,12 @@ function SelectButton (options) {
     this.setConfig({
         className: 'd3-selectbutton',
         states: {
-            hover: 'd3-selectbutton-state-hover',
-            selected: 'd3-selectbutton-state-selected'
+            hover: {
+                className: 'd3-selectbutton-state-hover'
+            },
+            selected: {
+                className: 'd3-selectbutton-state-selected'
+            }
         },
         dropDownMenu: getDefaultDropDownConf()
     });
@@ -1122,7 +1162,7 @@ SelectButton.prototype.selectItem = function (item, value) {
         listItem = dropDownMenuConf.listItem || {},
         states = listItem.states || {};
 
-    return item && item.classed(states.selected, value);
+    return item && item.classed(states.selected.className, value);
 };
 
 SelectButton.prototype.onSelect = function () {

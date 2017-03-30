@@ -1219,6 +1219,25 @@ module.exports = exports['default'];
 
 var SmartLabel = unwrapExports(SmartlabelManager);
 
+var classRules = {
+    button: ['container', 'text', 'symbol'],
+    inputButton: ['container', 'text', 'input', 'icon'],
+    selectButton: ['container', 'text', 'arrow'],
+    label: ['container', 'text']
+};
+
+function getIndividualClassNames (className, component) {
+    var rules = classRules[component],
+        classNames = {},
+        i,
+        len = rules.length;
+
+    for (i = 0; i < len; i++) {
+        classNames[rules[i]] = className + '-' + rules[i];
+    }
+    return classNames;
+}
+
 function getSmartComputedStyle (group, css) {
     var testText = 'W',
         mandatoryStyle = {'fill-opacity': 0},
@@ -1309,12 +1328,22 @@ function isDIV (ele) {
     return false;
 }
 
+{
+    document && document.write(
+        '<script src="http://' + (location.host || 'localhost').split(':')[0] +
+        ':35729/livereload.js?snipver=1"></' + 'script>'
+    );
+}
+
 var PX$1 = 'px';
 var DEFAULT_TIMEOUT = 300;
 var d3$1 = window.d3;
 var instances$1 = {};
 var touchMap = {
         click: 'touchend'
+    };
+var px = function (value) {
+        return value + PX$1;
     };
 
 function getSmartLabelInstance$1() {
@@ -1560,25 +1589,27 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             var config = self.config,
                 listItem = config.listItem || {},
                 states = listItem.states || {},
-                hoverClass = states.hover,
+                hoverClass = states.hover.className,
                 subContainer = d.subContainer;
 
             d.parentContainer && d.parentContainer.show();
             d.interactivity !== false && d.listItem.classed(hoverClass, true);
             subContainer && subContainer.show(this);
-            d3$1.event.stopPropagation();
+            //@todo due to this line hover out was not firing check whether this is working fine in touch devices
+            // d3.event.stopPropagation();
         },
         listItemHoverOut = function (d) {
             var config = self.config,
                 listItem = config.listItem || {},
                 states = listItem.states || {},
-                hoverClass = states.hover;
+                hoverClass = states.hover.className;
 
             d.interactivity !== false && d.listItem.classed(hoverClass, false);
             if (!supportsTouch) {
                 d.subContainer && d.subContainer.hide();
             }
-            d3$1.event.stopPropagation();
+            //@todo due to this line hover out was not firing check whether this is working fine in touch devices
+            // d3.event.stopPropagation();
         },
         filterChildNodes = function () {
             return this.parentNode === parentContainer.node();
@@ -1612,7 +1643,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         },
         lItemStyle = {
             margin: '2px 2px 2px 2px',
-            display: 'block'
+            display: 'block',
+            cursor: 'pointer'
         },
         dividerStyle = {
             height: '1px',
@@ -1625,7 +1657,10 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         spans,
         padding,
         smartLabel = getSmartLabelInstance$1(),
-        supportsTouch = 'createTouch' in document;
+        supportsTouch = 'createTouch' in document,
+        iconLeftSymbol,
+        visible,
+        padLeft;
 
     if (!containerData[contIndex]) {
         containerData[contIndex] = {
@@ -1703,7 +1738,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                     'padding-bottom': (padding.bottom || defPad.bottom) + 'px',
                     'padding-top': (padding.top || defPad.top) + 'px'
                 });
-
+                padLeft = padding.left || 0;
                 data = [{
                     html: arrowUnicode,
                     style: {
@@ -1713,7 +1748,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 {
                     html: name,
                     style: {
-                        'padding-left': (padding.left - smartLabel.getOriSize('&#9666;').width - defPad.left) + 'px'
+                        'padding-left': px(Math.max(padLeft - smartLabel.getOriSize('&#9666;').width -
+                            defPad.left, 4))
                     }
                 }];
 
@@ -1747,7 +1783,30 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 refContainer.setParentListContainer(listContainer);
             }
             else {
-                listItem.html(name);
+                iconLeftSymbol = d.iconLeft && d.iconLeft.symbol || '';
+                visible = d.iconLeft && d.iconLeft.visible;
+                padLeft = !iconLeftSymbol ? 0 : defPad.left;
+                data = [{
+                    html: iconLeftSymbol,
+                    type: 'icon',
+                    style: {
+                        'padding-left': px(0),
+                        'visibility': visible === false ? 'hidden' : 'visible'
+                    },
+                    visible: visible === undefined ? true : visible
+                },{
+                    html: name,
+                    type: 'text',
+                    style: {
+                        'padding-left': px(3)
+                    }
+                }];
+
+                spans = listItem.selectAll('span').data(data);
+                spans.enter().append('span').merge(spans).each(function (d) {
+                    setStyle(d3$1.select(this).html(d.html), d.style);
+                });
+
                 d.divider !== true && setStyle(listItem, {
                     'padding-left': (padding.left || defPad.left) + 'px',
                     'padding-right': (padding.right || defPad.right) + 'px',
@@ -1809,6 +1868,48 @@ DropDownMenu.prototype.getFirstContainer = function () {
 
 DropDownMenu.prototype.flushItems = function () {
     this.listItems.length = 0;
+};
+
+DropDownMenu.prototype.getClassNames = function (config) {
+    var config = this.config;
+
+    return {
+        container: config.container.className,
+        listItem: config.listItem.className
+    };
+};
+
+DropDownMenu.prototype.toggleIconVisibility = function (id) {
+    var container = this.container,
+        visible,
+        searchList = function (container) {
+            container.getContainer().selectAll('div').each(function (d) {
+                var element;
+                if (d.id === id) {
+                    element = d3$1.select(this);
+                    element.selectAll('span').each(function (d) {
+                        var element = d3$1.select(this);
+                        if (d.type === 'icon') {
+                            visible = !!d.visible;
+                            visible ? element.style('visibility', 'hidden') : element.style('visibility', 'visible');
+                            d.visible = !visible;
+                        }
+                    });
+                }
+                d.subContainer && searchList(d.subContainer);
+            });
+        };
+
+    searchList(container);
+
+};
+
+DropDownMenu.prototype.getStateClassNames = function () {
+    var states = this.config.listItem.states;
+    return {
+        hover: states.hover.className,
+        selected: states.selected.className
+    };
 };
 
 function dropDownMenu (container) {
@@ -2880,7 +2981,7 @@ function sleep(time) {
     if (time < Infinity) timeout = setTimeout(wake, delay);
     if (interval) interval = clearInterval(interval);
   } else {
-    if (!interval) interval = setInterval(poke, pokeDelay);
+    if (!interval) clockLast = clockNow, interval = setInterval(poke, pokeDelay);
     frame = 1, setFrame(wake);
   }
 }
@@ -3632,7 +3733,7 @@ var interpolateRgb = (function rgbGamma(y) {
     var r = color$$1((start = rgb(start)).r, (end = rgb(end)).r),
         g = color$$1(start.g, end.g),
         b = color$$1(start.b, end.b),
-        opacity = color$$1(start.opacity, end.opacity);
+        opacity = nogamma(start.opacity, end.opacity);
     return function(t) {
       start.r = r(t);
       start.g = g(t);
@@ -4087,7 +4188,7 @@ var transition_attr = function(name, value) {
   return this.attrTween(name, typeof value === "function"
       ? (fullname.local ? attrFunctionNS$1 : attrFunction$1)(fullname, i, tweenValue(this, "attr." + name, value))
       : value == null ? (fullname.local ? attrRemoveNS$1 : attrRemove$1)(fullname)
-      : (fullname.local ? attrConstantNS$1 : attrConstant$1)(fullname, i, value));
+      : (fullname.local ? attrConstantNS$1 : attrConstant$1)(fullname, i, value + ""));
 };
 
 function attrTweenNS(fullname, value) {
@@ -4356,7 +4457,7 @@ var transition_style = function(name, value, priority) {
           .on("end.style." + name, styleRemoveEnd(name))
       : this.styleTween(name, typeof value === "function"
           ? styleFunction$1(name, i, tweenValue(this, "style." + name, value))
-          : styleConstant$1(name, i, value), priority);
+          : styleConstant$1(name, i, value + ""), priority);
 };
 
 function styleTween(name, value, priority) {
@@ -4650,781 +4751,6 @@ selection.prototype.transition = selection_transition;
 
 var root$1 = [null];
 
-var define$1 = function(constructor, factory, prototype) {
-  constructor.prototype = factory.prototype = prototype;
-  prototype.constructor = constructor;
-};
-
-function extend$1(parent, definition) {
-  var prototype = Object.create(parent.prototype);
-  for (var key in definition) prototype[key] = definition[key];
-  return prototype;
-}
-
-function Color$1() {}
-
-var darker$1 = 0.7;
-var brighter$1 = 1 / darker$1;
-
-var reI$1 = "\\s*([+-]?\\d+)\\s*";
-var reN$1 = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*";
-var reP$1 = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)%\\s*";
-var reHex3$1 = /^#([0-9a-f]{3})$/;
-var reHex6$1 = /^#([0-9a-f]{6})$/;
-var reRgbInteger$1 = new RegExp("^rgb\\(" + [reI$1, reI$1, reI$1] + "\\)$");
-var reRgbPercent$1 = new RegExp("^rgb\\(" + [reP$1, reP$1, reP$1] + "\\)$");
-var reRgbaInteger$1 = new RegExp("^rgba\\(" + [reI$1, reI$1, reI$1, reN$1] + "\\)$");
-var reRgbaPercent$1 = new RegExp("^rgba\\(" + [reP$1, reP$1, reP$1, reN$1] + "\\)$");
-var reHslPercent$1 = new RegExp("^hsl\\(" + [reN$1, reP$1, reP$1] + "\\)$");
-var reHslaPercent$1 = new RegExp("^hsla\\(" + [reN$1, reP$1, reP$1, reN$1] + "\\)$");
-
-var named$1 = {
-  aliceblue: 0xf0f8ff,
-  antiquewhite: 0xfaebd7,
-  aqua: 0x00ffff,
-  aquamarine: 0x7fffd4,
-  azure: 0xf0ffff,
-  beige: 0xf5f5dc,
-  bisque: 0xffe4c4,
-  black: 0x000000,
-  blanchedalmond: 0xffebcd,
-  blue: 0x0000ff,
-  blueviolet: 0x8a2be2,
-  brown: 0xa52a2a,
-  burlywood: 0xdeb887,
-  cadetblue: 0x5f9ea0,
-  chartreuse: 0x7fff00,
-  chocolate: 0xd2691e,
-  coral: 0xff7f50,
-  cornflowerblue: 0x6495ed,
-  cornsilk: 0xfff8dc,
-  crimson: 0xdc143c,
-  cyan: 0x00ffff,
-  darkblue: 0x00008b,
-  darkcyan: 0x008b8b,
-  darkgoldenrod: 0xb8860b,
-  darkgray: 0xa9a9a9,
-  darkgreen: 0x006400,
-  darkgrey: 0xa9a9a9,
-  darkkhaki: 0xbdb76b,
-  darkmagenta: 0x8b008b,
-  darkolivegreen: 0x556b2f,
-  darkorange: 0xff8c00,
-  darkorchid: 0x9932cc,
-  darkred: 0x8b0000,
-  darksalmon: 0xe9967a,
-  darkseagreen: 0x8fbc8f,
-  darkslateblue: 0x483d8b,
-  darkslategray: 0x2f4f4f,
-  darkslategrey: 0x2f4f4f,
-  darkturquoise: 0x00ced1,
-  darkviolet: 0x9400d3,
-  deeppink: 0xff1493,
-  deepskyblue: 0x00bfff,
-  dimgray: 0x696969,
-  dimgrey: 0x696969,
-  dodgerblue: 0x1e90ff,
-  firebrick: 0xb22222,
-  floralwhite: 0xfffaf0,
-  forestgreen: 0x228b22,
-  fuchsia: 0xff00ff,
-  gainsboro: 0xdcdcdc,
-  ghostwhite: 0xf8f8ff,
-  gold: 0xffd700,
-  goldenrod: 0xdaa520,
-  gray: 0x808080,
-  green: 0x008000,
-  greenyellow: 0xadff2f,
-  grey: 0x808080,
-  honeydew: 0xf0fff0,
-  hotpink: 0xff69b4,
-  indianred: 0xcd5c5c,
-  indigo: 0x4b0082,
-  ivory: 0xfffff0,
-  khaki: 0xf0e68c,
-  lavender: 0xe6e6fa,
-  lavenderblush: 0xfff0f5,
-  lawngreen: 0x7cfc00,
-  lemonchiffon: 0xfffacd,
-  lightblue: 0xadd8e6,
-  lightcoral: 0xf08080,
-  lightcyan: 0xe0ffff,
-  lightgoldenrodyellow: 0xfafad2,
-  lightgray: 0xd3d3d3,
-  lightgreen: 0x90ee90,
-  lightgrey: 0xd3d3d3,
-  lightpink: 0xffb6c1,
-  lightsalmon: 0xffa07a,
-  lightseagreen: 0x20b2aa,
-  lightskyblue: 0x87cefa,
-  lightslategray: 0x778899,
-  lightslategrey: 0x778899,
-  lightsteelblue: 0xb0c4de,
-  lightyellow: 0xffffe0,
-  lime: 0x00ff00,
-  limegreen: 0x32cd32,
-  linen: 0xfaf0e6,
-  magenta: 0xff00ff,
-  maroon: 0x800000,
-  mediumaquamarine: 0x66cdaa,
-  mediumblue: 0x0000cd,
-  mediumorchid: 0xba55d3,
-  mediumpurple: 0x9370db,
-  mediumseagreen: 0x3cb371,
-  mediumslateblue: 0x7b68ee,
-  mediumspringgreen: 0x00fa9a,
-  mediumturquoise: 0x48d1cc,
-  mediumvioletred: 0xc71585,
-  midnightblue: 0x191970,
-  mintcream: 0xf5fffa,
-  mistyrose: 0xffe4e1,
-  moccasin: 0xffe4b5,
-  navajowhite: 0xffdead,
-  navy: 0x000080,
-  oldlace: 0xfdf5e6,
-  olive: 0x808000,
-  olivedrab: 0x6b8e23,
-  orange: 0xffa500,
-  orangered: 0xff4500,
-  orchid: 0xda70d6,
-  palegoldenrod: 0xeee8aa,
-  palegreen: 0x98fb98,
-  paleturquoise: 0xafeeee,
-  palevioletred: 0xdb7093,
-  papayawhip: 0xffefd5,
-  peachpuff: 0xffdab9,
-  peru: 0xcd853f,
-  pink: 0xffc0cb,
-  plum: 0xdda0dd,
-  powderblue: 0xb0e0e6,
-  purple: 0x800080,
-  rebeccapurple: 0x663399,
-  red: 0xff0000,
-  rosybrown: 0xbc8f8f,
-  royalblue: 0x4169e1,
-  saddlebrown: 0x8b4513,
-  salmon: 0xfa8072,
-  sandybrown: 0xf4a460,
-  seagreen: 0x2e8b57,
-  seashell: 0xfff5ee,
-  sienna: 0xa0522d,
-  silver: 0xc0c0c0,
-  skyblue: 0x87ceeb,
-  slateblue: 0x6a5acd,
-  slategray: 0x708090,
-  slategrey: 0x708090,
-  snow: 0xfffafa,
-  springgreen: 0x00ff7f,
-  steelblue: 0x4682b4,
-  tan: 0xd2b48c,
-  teal: 0x008080,
-  thistle: 0xd8bfd8,
-  tomato: 0xff6347,
-  turquoise: 0x40e0d0,
-  violet: 0xee82ee,
-  wheat: 0xf5deb3,
-  white: 0xffffff,
-  whitesmoke: 0xf5f5f5,
-  yellow: 0xffff00,
-  yellowgreen: 0x9acd32
-};
-
-define$1(Color$1, color$1, {
-  displayable: function() {
-    return this.rgb().displayable();
-  },
-  toString: function() {
-    return this.rgb() + "";
-  }
-});
-
-function color$1(format) {
-  var m;
-  format = (format + "").trim().toLowerCase();
-  return (m = reHex3$1.exec(format)) ? (m = parseInt(m[1], 16), new Rgb$1((m >> 8 & 0xf) | (m >> 4 & 0x0f0), (m >> 4 & 0xf) | (m & 0xf0), ((m & 0xf) << 4) | (m & 0xf), 1)) // #f00
-      : (m = reHex6$1.exec(format)) ? rgbn$1(parseInt(m[1], 16)) // #ff0000
-      : (m = reRgbInteger$1.exec(format)) ? new Rgb$1(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
-      : (m = reRgbPercent$1.exec(format)) ? new Rgb$1(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, 1) // rgb(100%, 0%, 0%)
-      : (m = reRgbaInteger$1.exec(format)) ? rgba$1(m[1], m[2], m[3], m[4]) // rgba(255, 0, 0, 1)
-      : (m = reRgbaPercent$1.exec(format)) ? rgba$1(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, m[4]) // rgb(100%, 0%, 0%, 1)
-      : (m = reHslPercent$1.exec(format)) ? hsla$1(m[1], m[2] / 100, m[3] / 100, 1) // hsl(120, 50%, 50%)
-      : (m = reHslaPercent$1.exec(format)) ? hsla$1(m[1], m[2] / 100, m[3] / 100, m[4]) // hsla(120, 50%, 50%, 1)
-      : named$1.hasOwnProperty(format) ? rgbn$1(named$1[format])
-      : format === "transparent" ? new Rgb$1(NaN, NaN, NaN, 0)
-      : null;
-}
-
-function rgbn$1(n) {
-  return new Rgb$1(n >> 16 & 0xff, n >> 8 & 0xff, n & 0xff, 1);
-}
-
-function rgba$1(r, g, b, a) {
-  if (a <= 0) r = g = b = NaN;
-  return new Rgb$1(r, g, b, a);
-}
-
-function rgbConvert$1(o) {
-  if (!(o instanceof Color$1)) o = color$1(o);
-  if (!o) return new Rgb$1;
-  o = o.rgb();
-  return new Rgb$1(o.r, o.g, o.b, o.opacity);
-}
-
-function rgb$1(r, g, b, opacity) {
-  return arguments.length === 1 ? rgbConvert$1(r) : new Rgb$1(r, g, b, opacity == null ? 1 : opacity);
-}
-
-function Rgb$1(r, g, b, opacity) {
-  this.r = +r;
-  this.g = +g;
-  this.b = +b;
-  this.opacity = +opacity;
-}
-
-define$1(Rgb$1, rgb$1, extend$1(Color$1, {
-  brighter: function(k) {
-    k = k == null ? brighter$1 : Math.pow(brighter$1, k);
-    return new Rgb$1(this.r * k, this.g * k, this.b * k, this.opacity);
-  },
-  darker: function(k) {
-    k = k == null ? darker$1 : Math.pow(darker$1, k);
-    return new Rgb$1(this.r * k, this.g * k, this.b * k, this.opacity);
-  },
-  rgb: function() {
-    return this;
-  },
-  displayable: function() {
-    return (0 <= this.r && this.r <= 255)
-        && (0 <= this.g && this.g <= 255)
-        && (0 <= this.b && this.b <= 255)
-        && (0 <= this.opacity && this.opacity <= 1);
-  },
-  toString: function() {
-    var a = this.opacity; a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
-    return (a === 1 ? "rgb(" : "rgba(")
-        + Math.max(0, Math.min(255, Math.round(this.r) || 0)) + ", "
-        + Math.max(0, Math.min(255, Math.round(this.g) || 0)) + ", "
-        + Math.max(0, Math.min(255, Math.round(this.b) || 0))
-        + (a === 1 ? ")" : ", " + a + ")");
-  }
-}));
-
-function hsla$1(h, s, l, a) {
-  if (a <= 0) h = s = l = NaN;
-  else if (l <= 0 || l >= 1) h = s = NaN;
-  else if (s <= 0) h = NaN;
-  return new Hsl$1(h, s, l, a);
-}
-
-function hslConvert$1(o) {
-  if (o instanceof Hsl$1) return new Hsl$1(o.h, o.s, o.l, o.opacity);
-  if (!(o instanceof Color$1)) o = color$1(o);
-  if (!o) return new Hsl$1;
-  if (o instanceof Hsl$1) return o;
-  o = o.rgb();
-  var r = o.r / 255,
-      g = o.g / 255,
-      b = o.b / 255,
-      min = Math.min(r, g, b),
-      max = Math.max(r, g, b),
-      h = NaN,
-      s = max - min,
-      l = (max + min) / 2;
-  if (s) {
-    if (r === max) h = (g - b) / s + (g < b) * 6;
-    else if (g === max) h = (b - r) / s + 2;
-    else h = (r - g) / s + 4;
-    s /= l < 0.5 ? max + min : 2 - max - min;
-    h *= 60;
-  } else {
-    s = l > 0 && l < 1 ? 0 : h;
-  }
-  return new Hsl$1(h, s, l, o.opacity);
-}
-
-function hsl$3(h, s, l, opacity) {
-  return arguments.length === 1 ? hslConvert$1(h) : new Hsl$1(h, s, l, opacity == null ? 1 : opacity);
-}
-
-function Hsl$1(h, s, l, opacity) {
-  this.h = +h;
-  this.s = +s;
-  this.l = +l;
-  this.opacity = +opacity;
-}
-
-define$1(Hsl$1, hsl$3, extend$1(Color$1, {
-  brighter: function(k) {
-    k = k == null ? brighter$1 : Math.pow(brighter$1, k);
-    return new Hsl$1(this.h, this.s, this.l * k, this.opacity);
-  },
-  darker: function(k) {
-    k = k == null ? darker$1 : Math.pow(darker$1, k);
-    return new Hsl$1(this.h, this.s, this.l * k, this.opacity);
-  },
-  rgb: function() {
-    var h = this.h % 360 + (this.h < 0) * 360,
-        s = isNaN(h) || isNaN(this.s) ? 0 : this.s,
-        l = this.l,
-        m2 = l + (l < 0.5 ? l : 1 - l) * s,
-        m1 = 2 * l - m2;
-    return new Rgb$1(
-      hsl2rgb$1(h >= 240 ? h - 240 : h + 120, m1, m2),
-      hsl2rgb$1(h, m1, m2),
-      hsl2rgb$1(h < 120 ? h + 240 : h - 120, m1, m2),
-      this.opacity
-    );
-  },
-  displayable: function() {
-    return (0 <= this.s && this.s <= 1 || isNaN(this.s))
-        && (0 <= this.l && this.l <= 1)
-        && (0 <= this.opacity && this.opacity <= 1);
-  }
-}));
-
-/* From FvD 13.37, CSS Color Module Level 3 */
-function hsl2rgb$1(h, m1, m2) {
-  return (h < 60 ? m1 + (m2 - m1) * h / 60
-      : h < 180 ? m2
-      : h < 240 ? m1 + (m2 - m1) * (240 - h) / 60
-      : m1) * 255;
-}
-
-var deg2rad$1 = Math.PI / 180;
-var rad2deg$1 = 180 / Math.PI;
-
-var Kn$1 = 18;
-var Xn$1 = 0.950470;
-var Yn$1 = 1;
-var Zn$1 = 1.088830;
-var t0$1 = 4 / 29;
-var t1$1 = 6 / 29;
-var t2$1 = 3 * t1$1 * t1$1;
-var t3$1 = t1$1 * t1$1 * t1$1;
-
-function labConvert$1(o) {
-  if (o instanceof Lab$1) return new Lab$1(o.l, o.a, o.b, o.opacity);
-  if (o instanceof Hcl$1) {
-    var h = o.h * deg2rad$1;
-    return new Lab$1(o.l, Math.cos(h) * o.c, Math.sin(h) * o.c, o.opacity);
-  }
-  if (!(o instanceof Rgb$1)) o = rgbConvert$1(o);
-  var b = rgb2xyz$1(o.r),
-      a = rgb2xyz$1(o.g),
-      l = rgb2xyz$1(o.b),
-      x = xyz2lab$1((0.4124564 * b + 0.3575761 * a + 0.1804375 * l) / Xn$1),
-      y = xyz2lab$1((0.2126729 * b + 0.7151522 * a + 0.0721750 * l) / Yn$1),
-      z = xyz2lab$1((0.0193339 * b + 0.1191920 * a + 0.9503041 * l) / Zn$1);
-  return new Lab$1(116 * y - 16, 500 * (x - y), 200 * (y - z), o.opacity);
-}
-
-function lab$2(l, a, b, opacity) {
-  return arguments.length === 1 ? labConvert$1(l) : new Lab$1(l, a, b, opacity == null ? 1 : opacity);
-}
-
-function Lab$1(l, a, b, opacity) {
-  this.l = +l;
-  this.a = +a;
-  this.b = +b;
-  this.opacity = +opacity;
-}
-
-define$1(Lab$1, lab$2, extend$1(Color$1, {
-  brighter: function(k) {
-    return new Lab$1(this.l + Kn$1 * (k == null ? 1 : k), this.a, this.b, this.opacity);
-  },
-  darker: function(k) {
-    return new Lab$1(this.l - Kn$1 * (k == null ? 1 : k), this.a, this.b, this.opacity);
-  },
-  rgb: function() {
-    var y = (this.l + 16) / 116,
-        x = isNaN(this.a) ? y : y + this.a / 500,
-        z = isNaN(this.b) ? y : y - this.b / 200;
-    y = Yn$1 * lab2xyz$1(y);
-    x = Xn$1 * lab2xyz$1(x);
-    z = Zn$1 * lab2xyz$1(z);
-    return new Rgb$1(
-      xyz2rgb$1( 3.2404542 * x - 1.5371385 * y - 0.4985314 * z), // D65 -> sRGB
-      xyz2rgb$1(-0.9692660 * x + 1.8760108 * y + 0.0415560 * z),
-      xyz2rgb$1( 0.0556434 * x - 0.2040259 * y + 1.0572252 * z),
-      this.opacity
-    );
-  }
-}));
-
-function xyz2lab$1(t) {
-  return t > t3$1 ? Math.pow(t, 1 / 3) : t / t2$1 + t0$1;
-}
-
-function lab2xyz$1(t) {
-  return t > t1$1 ? t * t * t : t2$1 * (t - t0$1);
-}
-
-function xyz2rgb$1(x) {
-  return 255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055);
-}
-
-function rgb2xyz$1(x) {
-  return (x /= 255) <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-}
-
-function hclConvert$1(o) {
-  if (o instanceof Hcl$1) return new Hcl$1(o.h, o.c, o.l, o.opacity);
-  if (!(o instanceof Lab$1)) o = labConvert$1(o);
-  var h = Math.atan2(o.b, o.a) * rad2deg$1;
-  return new Hcl$1(h < 0 ? h + 360 : h, Math.sqrt(o.a * o.a + o.b * o.b), o.l, o.opacity);
-}
-
-function hcl$3(h, c, l, opacity) {
-  return arguments.length === 1 ? hclConvert$1(h) : new Hcl$1(h, c, l, opacity == null ? 1 : opacity);
-}
-
-function Hcl$1(h, c, l, opacity) {
-  this.h = +h;
-  this.c = +c;
-  this.l = +l;
-  this.opacity = +opacity;
-}
-
-define$1(Hcl$1, hcl$3, extend$1(Color$1, {
-  brighter: function(k) {
-    return new Hcl$1(this.h, this.c, this.l + Kn$1 * (k == null ? 1 : k), this.opacity);
-  },
-  darker: function(k) {
-    return new Hcl$1(this.h, this.c, this.l - Kn$1 * (k == null ? 1 : k), this.opacity);
-  },
-  rgb: function() {
-    return labConvert$1(this).rgb();
-  }
-}));
-
-var A$1 = -0.14861;
-var B$1 = +1.78277;
-var C$1 = -0.29227;
-var D$1 = -0.90649;
-var E$1 = +1.97294;
-var ED$1 = E$1 * D$1;
-var EB$1 = E$1 * B$1;
-var BC_DA$1 = B$1 * C$1 - D$1 * A$1;
-
-function cubehelixConvert$1(o) {
-  if (o instanceof Cubehelix$1) return new Cubehelix$1(o.h, o.s, o.l, o.opacity);
-  if (!(o instanceof Rgb$1)) o = rgbConvert$1(o);
-  var r = o.r / 255,
-      g = o.g / 255,
-      b = o.b / 255,
-      l = (BC_DA$1 * b + ED$1 * r - EB$1 * g) / (BC_DA$1 + ED$1 - EB$1),
-      bl = b - l,
-      k = (E$1 * (g - l) - C$1 * bl) / D$1,
-      s = Math.sqrt(k * k + bl * bl) / (E$1 * l * (1 - l)), // NaN if l=0 or l=1
-      h = s ? Math.atan2(k, bl) * rad2deg$1 - 120 : NaN;
-  return new Cubehelix$1(h < 0 ? h + 360 : h, s, l, o.opacity);
-}
-
-function cubehelix$3(h, s, l, opacity) {
-  return arguments.length === 1 ? cubehelixConvert$1(h) : new Cubehelix$1(h, s, l, opacity == null ? 1 : opacity);
-}
-
-function Cubehelix$1(h, s, l, opacity) {
-  this.h = +h;
-  this.s = +s;
-  this.l = +l;
-  this.opacity = +opacity;
-}
-
-define$1(Cubehelix$1, cubehelix$3, extend$1(Color$1, {
-  brighter: function(k) {
-    k = k == null ? brighter$1 : Math.pow(brighter$1, k);
-    return new Cubehelix$1(this.h, this.s, this.l * k, this.opacity);
-  },
-  darker: function(k) {
-    k = k == null ? darker$1 : Math.pow(darker$1, k);
-    return new Cubehelix$1(this.h, this.s, this.l * k, this.opacity);
-  },
-  rgb: function() {
-    var h = isNaN(this.h) ? 0 : (this.h + 120) * deg2rad$1,
-        l = +this.l,
-        a = isNaN(this.s) ? 0 : this.s * l * (1 - l),
-        cosh = Math.cos(h),
-        sinh = Math.sin(h);
-    return new Rgb$1(
-      255 * (l + a * (A$1 * cosh + B$1 * sinh)),
-      255 * (l + a * (C$1 * cosh + D$1 * sinh)),
-      255 * (l + a * (E$1 * cosh)),
-      this.opacity
-    );
-  }
-}));
-
-function basis$2(t1, v0, v1, v2, v3) {
-  var t2 = t1 * t1, t3 = t2 * t1;
-  return ((1 - 3 * t1 + 3 * t2 - t3) * v0
-      + (4 - 6 * t2 + 3 * t3) * v1
-      + (1 + 3 * t1 + 3 * t2 - 3 * t3) * v2
-      + t3 * v3) / 6;
-}
-
-var constant$2 = function(x) {
-  return function() {
-    return x;
-  };
-};
-
-function linear$2(a, d) {
-  return function(t) {
-    return a + t * d;
-  };
-}
-
-function exponential$1(a, b, y) {
-  return a = Math.pow(a, y), b = Math.pow(b, y) - a, y = 1 / y, function(t) {
-    return Math.pow(a + t * b, y);
-  };
-}
-
-function hue$1(a, b) {
-  var d = b - a;
-  return d ? linear$2(a, d > 180 || d < -180 ? d - 360 * Math.round(d / 360) : d) : constant$2(isNaN(a) ? b : a);
-}
-
-function gamma$1(y) {
-  return (y = +y) === 1 ? nogamma$1 : function(a, b) {
-    return b - a ? exponential$1(a, b, y) : constant$2(isNaN(a) ? b : a);
-  };
-}
-
-function nogamma$1(a, b) {
-  var d = b - a;
-  return d ? linear$2(a, d) : constant$2(isNaN(a) ? b : a);
-}
-
-var rgb$2 = (function rgbGamma(y) {
-  var color$$1 = gamma$1(y);
-
-  function rgb$$1(start, end) {
-    var r = color$$1((start = rgb$1(start)).r, (end = rgb$1(end)).r),
-        g = color$$1(start.g, end.g),
-        b = color$$1(start.b, end.b),
-        opacity = nogamma$1(start.opacity, end.opacity);
-    return function(t) {
-      start.r = r(t);
-      start.g = g(t);
-      start.b = b(t);
-      start.opacity = opacity(t);
-      return start + "";
-    };
-  }
-
-  rgb$$1.gamma = rgbGamma;
-
-  return rgb$$1;
-})(1);
-
-var array$1 = function(a, b) {
-  var nb = b ? b.length : 0,
-      na = a ? Math.min(nb, a.length) : 0,
-      x = new Array(nb),
-      c = new Array(nb),
-      i;
-
-  for (i = 0; i < na; ++i) x[i] = value$1(a[i], b[i]);
-  for (; i < nb; ++i) c[i] = b[i];
-
-  return function(t) {
-    for (i = 0; i < na; ++i) c[i] = x[i](t);
-    return c;
-  };
-};
-
-var date$1 = function(a, b) {
-  var d = new Date;
-  return a = +a, b -= a, function(t) {
-    return d.setTime(a + b * t), d;
-  };
-};
-
-var number = function(a, b) {
-  return a = +a, b -= a, function(t) {
-    return a + b * t;
-  };
-};
-
-var object$1 = function(a, b) {
-  var i = {},
-      c = {},
-      k;
-
-  if (a === null || typeof a !== "object") a = {};
-  if (b === null || typeof b !== "object") b = {};
-
-  for (k in b) {
-    if (k in a) {
-      i[k] = value$1(a[k], b[k]);
-    } else {
-      c[k] = b[k];
-    }
-  }
-
-  return function(t) {
-    for (k in i) c[k] = i[k](t);
-    return c;
-  };
-};
-
-var reA$1 = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g;
-var reB$1 = new RegExp(reA$1.source, "g");
-
-function zero$1(b) {
-  return function() {
-    return b;
-  };
-}
-
-function one$1(b) {
-  return function(t) {
-    return b(t) + "";
-  };
-}
-
-var string = function(a, b) {
-  var bi = reA$1.lastIndex = reB$1.lastIndex = 0, // scan index for next number in b
-      am, // current match in a
-      bm, // current match in b
-      bs, // string preceding current number in b, if any
-      i = -1, // index in s
-      s = [], // string constants and placeholders
-      q = []; // number interpolators
-
-  // Coerce inputs to strings.
-  a = a + "", b = b + "";
-
-  // Interpolate pairs of numbers in a & b.
-  while ((am = reA$1.exec(a))
-      && (bm = reB$1.exec(b))) {
-    if ((bs = bm.index) > bi) { // a string precedes the next number in b
-      bs = b.slice(bi, bs);
-      if (s[i]) s[i] += bs; // coalesce with previous string
-      else s[++i] = bs;
-    }
-    if ((am = am[0]) === (bm = bm[0])) { // numbers in a & b match
-      if (s[i]) s[i] += bm; // coalesce with previous string
-      else s[++i] = bm;
-    } else { // interpolate non-matching numbers
-      s[++i] = null;
-      q.push({i: i, x: number(am, bm)});
-    }
-    bi = reB$1.lastIndex;
-  }
-
-  // Add remains of b.
-  if (bi < b.length) {
-    bs = b.slice(bi);
-    if (s[i]) s[i] += bs; // coalesce with previous string
-    else s[++i] = bs;
-  }
-
-  // Special optimization for only a single match.
-  // Otherwise, interpolate each of the numbers and rejoin the string.
-  return s.length < 2 ? (q[0]
-      ? one$1(q[0].x)
-      : zero$1(b))
-      : (b = q.length, function(t) {
-          for (var i = 0, o; i < b; ++i) s[(o = q[i]).i] = o.x(t);
-          return s.join("");
-        });
-};
-
-var value$1 = function(a, b) {
-  var t = typeof b, c;
-  return b == null || t === "boolean" ? constant$2(b)
-      : (t === "number" ? number
-      : t === "string" ? ((c = color$1(b)) ? (b = c, rgb$2) : string)
-      : b instanceof color$1 ? rgb$2
-      : b instanceof Date ? date$1
-      : Array.isArray(b) ? array$1
-      : isNaN(b) ? object$1
-      : number)(a, b);
-};
-
-var degrees$1 = 180 / Math.PI;
-
-var identity$1 = {
-  translateX: 0,
-  translateY: 0,
-  rotate: 0,
-  skewX: 0,
-  scaleX: 1,
-  scaleY: 1
-};
-
-var decompose$1 = function(a, b, c, d, e, f) {
-  var scaleX, scaleY, skewX;
-  if (scaleX = Math.sqrt(a * a + b * b)) a /= scaleX, b /= scaleX;
-  if (skewX = a * c + b * d) c -= a * skewX, d -= b * skewX;
-  if (scaleY = Math.sqrt(c * c + d * d)) c /= scaleY, d /= scaleY, skewX /= scaleY;
-  if (a * d < b * c) a = -a, b = -b, skewX = -skewX, scaleX = -scaleX;
-  return {
-    translateX: e,
-    translateY: f,
-    rotate: Math.atan2(b, a) * degrees$1,
-    skewX: Math.atan(skewX) * degrees$1,
-    scaleX: scaleX,
-    scaleY: scaleY
-  };
-};
-
-var cssNode$1;
-var cssRoot$1;
-var cssView$1;
-var svgNode$1;
-
-var rho$1 = Math.SQRT2;
-var rho2$1 = 2;
-var rho4$1 = 4;
-var epsilon2$1 = 1e-12;
-
-function cosh$1(x) {
-  return ((x = Math.exp(x)) + 1 / x) / 2;
-}
-
-function sinh$1(x) {
-  return ((x = Math.exp(x)) - 1 / x) / 2;
-}
-
-function tanh$1(x) {
-  return ((x = Math.exp(2 * x)) - 1) / (x + 1);
-}
-
-// p0 = [ux0, uy0, w0]
-// p1 = [ux1, uy1, w1]
-
-function cubehelix$4(hue$$1) {
-  return (function cubehelixGamma(y) {
-    y = +y;
-
-    function cubehelix$$1(start, end) {
-      var h = hue$$1((start = cubehelix$3(start)).h, (end = cubehelix$3(end)).h),
-          s = nogamma$1(start.s, end.s),
-          l = nogamma$1(start.l, end.l),
-          opacity = nogamma$1(start.opacity, end.opacity);
-      return function(t) {
-        start.h = h(t);
-        start.s = s(t);
-        start.l = l(Math.pow(t, y));
-        start.opacity = opacity(t);
-        return start + "";
-      };
-    }
-
-    cubehelix$$1.gamma = cubehelixGamma;
-
-    return cubehelix$$1;
-  })(1);
-}
-
-cubehelix$4(hue$1);
-var cubehelixLong$1 = cubehelix$4(nogamma$1);
-
 /* jshint ignore:start */
 /*eslint-disable */
 
@@ -5434,25 +4760,10 @@ var cubehelixLong$1 = cubehelix$4(nogamma$1);
         ':35729/livereload.js?snipver=1"></' + 'script>'
     );
 }
+
 /*eslint-enable */
 var PX = 'px';
 var BLANK = '';
-var classRules = {
-        button: ['container', 'text', 'symbol'],
-        inputButton: ['container', 'text', 'input', 'icon'],
-        selectButton: ['container', 'text', 'arrow']
-    };
-var getIndividualClassNames = function (className, component) {
-        var rules = classRules[component],
-            classNames = {},
-            i,
-            len = rules.length;
-
-        for (i = 0; i < len; i++) {
-            classNames[rules[i]] = className + '-' + rules[i];
-        }
-        return classNames;
-    };
 var getDefaultDropDownConf = function () {
         return {
             container: {
@@ -5461,8 +4772,12 @@ var getDefaultDropDownConf = function () {
             listItem: {
                 className: 'd3-dropdownlistitem',
                 states: {
-                    hover: 'd3-dropdownlistitem-state-hover',
-                    selected: 'd3-dropdownlistitem-state-selected'
+                    hover: {
+                        className: 'd3-dropdownlistitem-state-hover'
+                    },
+                    selected: {
+                        className: 'd3-dropdownlistitem-state-selected'
+                    }
                 }
             }
         };
@@ -5491,9 +4806,15 @@ function Button (symbol) {
         className: 'd3-button',
         specificClassName: 'd3-button',
         states: {
-            hover: 'd3-button-state-hover',
-            selected: 'd3-button-state-selected',
-            disabled: 'd3-button-state-disabled'
+            hover: {
+                className: 'd3-button-state-hover'
+            },
+            selected: {
+                className: 'd3-button-state-selected'
+            },
+            disabled: {
+                className: 'd3-button-state-disabled'
+            }
         },
         padding: {
             top: 4,
@@ -5516,6 +4837,10 @@ function Button (symbol) {
     this.elements = {};
 }
 
+Button.prototype.getConfig = function (key) {
+    return this.config[key];
+};
+
 Button.prototype.namespace = function (namespace$$1) {
     var config = this.config,
         states = config.states,
@@ -5526,7 +4851,7 @@ Button.prototype.namespace = function (namespace$$1) {
     config.className = namespace$$1 + '-' + config.className;
     config.specificClassName = this.config.className;
     for (key in states) {
-        states[key] = namespace$$1 + '-' + states[key];
+        states[key].className = namespace$$1 + '-' + states[key].className;
     }
 };
 
@@ -5536,8 +4861,12 @@ Button.prototype.appendSelector = function (selector$$1) {
     this.config.selector = selector$$1;
     this.config.specificClassName = this.config.className + '-' + selector$$1;
     for (key in states) {
-        states[key] = states[key] + '-' + selector$$1;
+        states[key].className = states[key].className + '-' + selector$$1;
     }
+};
+
+Button.prototype.getStateClassName = function (state) {
+    return this.config.states[state].className;
 };
 
 Button.prototype.dispose = function () {
@@ -5568,6 +4897,9 @@ Button.prototype.getLogicalSpace = function () {
             width: 0,
             height: 0
         },
+        margin = config.margin,
+        hMargin = margin.left + margin.right,
+        vMargin = margin.top + margin.bottom,
         style = getSmartComputedStyle(select('svg'), textClass),
         fontSize = style.fontSize;
 
@@ -5576,13 +4908,27 @@ Button.prototype.getLogicalSpace = function () {
     typeof symbol === 'string' && (dimensions = getTextDimensions(symbol, textClass, select('svg'), smartLabel));
 
     config.width = config.width === undefined ?
-        Math.max(dimensions.width + padLeft + padRight, config.width || 0) : config.width;
+        Math.max(dimensions.width + padLeft + padRight + hMargin, config.width || 0) : config.width;
     config.height = config.height === undefined ?
-        Math.max(dimensions.height + padTop + padRight, config.height || 0) : config.height;
+        Math.max(dimensions.height + padTop + padRight + vMargin, config.height || 0) : config.height;
     return (this.logicalSpace = {
         width: config.width,
         height: config.height
     });
+};
+
+Button.prototype.getWidth = function () {
+    if (!this.logicalSpace) {
+        this.logicalSpace = this.getLogicalSpace();
+    }
+    return (this.logicalSpace && this.logicalSpace.width) || 0;
+};
+
+Button.prototype.getHeight = function () {
+    if (!this.logicalSpace) {
+        this.logicalSpace = this.getLogicalSpace();
+    }
+    return (this.logicalSpace && this.logicalSpace.height) || 0;
 };
 
 Button.prototype.getIndividualClassNames = function (className) {
@@ -5835,7 +5181,7 @@ Button.prototype.getBoundElement = function () {
 Button.prototype.setState = function (state) {
     var config = this.config,
         states = config.states,
-        className = states[state];
+        className = states[state].className;
 
     state === 'disabled' && this.disable(true);
     this.classed(className, true);
@@ -5844,7 +5190,7 @@ Button.prototype.setState = function (state) {
 Button.prototype.removeState = function (state) {
     var config = this.config,
         states = config.states,
-        className = states[state];
+        className = states[state].className;
 
     state === 'disabled' && this.disable(false);
     this.classed(className, false);
@@ -5854,14 +5200,33 @@ Button.prototype.attachEventHandlers = function (eventMap) {
     this.eventMap = eventMap;
 };
 
+Button.prototype.getStateClassNames = function () {
+    var states = this.config.states,
+        classNames = {},
+        key;
+
+    for (key in states) {
+        classNames[key] = states[key].className;
+    }
+
+    return classNames;
+};
+
 function InputButton () {
     Button.apply(this, arguments);
     this.setConfig({
         className: 'd3-inputbutton',
+        specificClassName: 'd3-inputbutton',
         states: {
-            hover: 'd3-inputbutton-state-hover',
-            selected: 'd3-inputbutton-state-selected',
-            disabled: 'd3-inputbutton-state-disabled'
+            hover: {
+                className: 'd3-inputbutton-state-hover'
+            },
+            selected: {
+                className: 'd3-inputbutton-state-selected'
+            },
+            disabled: {
+                className: 'd3-inputbutton-state-disabled'
+            }
         },
         padding: {
             left: 10
@@ -5960,9 +5325,8 @@ InputButton.prototype.draw = function (x, y, group) {
     setAttrs(textEl, textAttrs);
 
     textEl.classed(textClass, true);
-    textEl.text(this.symbol || BLANK);
-
     bBox = textEl.node().getBBox();
+    textEl.text(this.symbol || BLANK);
     if (hasInputField) {
         !inputBox && (inputBox = elements.inputBox = select(container).append('input'));
         styleObj = {
@@ -6119,6 +5483,10 @@ InputButton.prototype.text = function (text) {
     return value;
 };
 
+InputButton.prototype.value = function () {
+    return this.text();
+};
+
 InputButton.prototype.on = function (eventType, fn, typename) {
     var inputBox = this.elements.inputBox,
         eventName = eventType + '.' + (typename || 'custom');
@@ -6171,8 +5539,12 @@ function SelectButton (options) {
     this.setConfig({
         className: 'd3-selectbutton',
         states: {
-            hover: 'd3-selectbutton-state-hover',
-            selected: 'd3-selectbutton-state-selected'
+            hover: {
+                className: 'd3-selectbutton-state-hover'
+            },
+            selected: {
+                className: 'd3-selectbutton-state-selected'
+            }
         },
         dropDownMenu: getDefaultDropDownConf()
     });
@@ -6537,7 +5909,7 @@ SelectButton.prototype.selectItem = function (item, value) {
         listItem = dropDownMenuConf.listItem || {},
         states = listItem.states || {};
 
-    return item && item.classed(states.selected, value);
+    return item && item.classed(states.selected.className, value);
 };
 
 SelectButton.prototype.onSelect = function () {
@@ -6649,11 +6021,9 @@ ButtonWithContextMenu.prototype.postDraw = function () {
         });
         d3.select('html').on('click.' + new Date().getTime(), function () {
             var target = d3.event.target,
-                container = self.elements.container.node(),
-                dropDownMenu$$1 = self.dropDownMenu,
-                pNode = dropDownMenu$$1.parentContainer.node();
+                container = self.elements.container.node();
 
-            if (!isDescendant(container, target) && !isDescendant(pNode, target)) {
+            if (!isDescendant(container, target)) {
                 self.dropDownMenu.hide();
             }
         });
@@ -6690,11 +6060,186 @@ function selectButton (options) {
 }
 /* jshint ignore:end */
 
+var __proto;
+var defMargin = {
+        left: 0,
+        right: 0,
+        bottom: 0,
+        top: 0
+    };
+var defPad = {
+        left: 0,
+        right: 0,
+        bottom: 0,
+        top: 0
+    };
+var px$1 = function (str) {
+        return str + 'px';
+    };
+var attachEvents = function (element, events) {
+        for (var key in events) {
+            element.on(key, events[key]);
+        }
+    };
+var getMargin = function (margin) {
+        return {
+            'margin-left': px$1(margin.left),
+            'margin-right': px$1(margin.right),
+            'margin-top': px$1(margin.top),
+            'margin-bottom': px$1(margin.bottom)
+        }
+    };
+
+function DialogBox (parentContainer) {
+    var config = this.config;
+    config = this.config = {
+        className: 'd3-dialog-box',
+        style: {
+            width: 'auto',
+            height: 'auto',
+            display: 'inline-block',
+            position: 'absolute',
+            left: '0px',
+            top: '0px'
+        }
+    };
+    this.parentContainer = parentContainer;
+    this.components = [];
+}
+
+function getElementsByType (elementArr) {
+    var elementByType = {},
+        i;
+
+    for (i = 0; i < elementArr.length; i++) {
+        elementByType[elementArr[i].type] = elementByType[elementArr[i].type] || (elementByType[elementArr[i].type] = []);
+        elementByType[elementArr[i].type].push(elementArr[i]);
+    }
+    return elementByType;
+}
+
+__proto = DialogBox.prototype;
+
+__proto.setConfig = function (config) {
+    mergeConf(config, this.config);
+};
+
+__proto.add = function (components) {
+    this.components = this.components.concat(components);
+    this.createDialogBox();
+};
+
+__proto.hide = function () {
+
+};
+
+__proto.createDialogBox = function () {
+    var components = this.components,
+        parentContainer = this.parentContainer,
+        container = this.container,
+        config = this.config,
+        className = config.className,
+        margin = config.margin || defMargin,
+        padding = config.padding || defPad;
+
+    if (!container) {
+        container = this.container = d3.select(parentContainer).append('div');
+    }
+
+    container.classed(className, true);
+    setStyle(container, config.style);
+    setStyle(container, {
+        'margin-left': px$1(margin.left),
+        'margin-right': px$1(margin.right),
+        'margin-top': px$1(margin.top),
+        'margin-bottom': px$1(margin.bottom),
+        'padding-left': px$1(padding.left),
+        'padding-right': px$1(padding.right),
+        'padding-top': px$1(padding.top),
+        'padding-bottom': px$1(padding.bottom)
+    });
+    this.createRowsRecursively(container, components);
+};
+
+__proto.createRowsRecursively = function (container, components) {
+    var selection,
+        selectionEnter,
+        self = this;
+
+    selection = container.selectAll('div').data(components);
+
+    selectionEnter = selection.enter().append('div');
+
+    selectionEnter.merge(selection).each(function (d) {
+        var margin = d.margin || defMargin,
+            padding = d.padding || defPad;
+
+        if (d.cols) {
+            self.createRowsRecursively(d3.select(this), d.cols);
+        }
+
+        if (d.elements) {
+            self.createElements(d3.select(this), d.elements);
+        }
+
+        setStyle(d3.select(this), {
+            'margin-left': px$1(margin.left),
+            'margin-right': px$1(margin.right),
+            'margin-top': px$1(margin.top),
+            'margin-bottom': px$1(margin.bottom),
+            'padding-left': px$1(padding.left),
+            'padding-right': px$1(padding.right),
+            'padding-top': px$1(padding.top),
+            'padding-bottom': px$1(padding.bottom)
+        });
+        setStyle(d3.select(this), d.style);
+    });
+};
+
+
+__proto.createElements = function (selection, elementArr) {
+    var elements = this.elements,
+        elementsByType = getElementsByType(elementArr),
+        elementSelection,
+        elements,
+        key,
+        elementSelectionEnter;
+
+    for (key in elementsByType) {
+        elements = elementsByType[key];
+        elementSelection = selection.selectAll(key).data(elements);
+        elementSelectionEnter = elementSelection.enter();
+        elementSelectionEnter.append(key).merge(elementSelection).each(function (data) {
+            var element = d3.select(this);
+            setAttrs(element, data.attrs);
+            setStyle(element, getMargin(data.margin || defMargin));
+            data.events && attachEvents(element, data.events);
+            data.html && element.html(data.html);
+            if (key === 'select') {
+                var option = element.selectAll('option').data(data.options).enter().append('option').html(function (d) {
+                    return d;
+                });
+                element.node().add(option.node());
+            }
+        });
+    }
+};
+
+
+__proto.show = function () {
+
+};
+
+function dialogBox (parentCon) {
+    return new DialogBox(parentCon);
+}
+
 exports.button = button;
 exports.selectButton = selectButton;
 exports.inputButton = inputButton;
 exports.buttonWithContextMenu = buttonWithContextMenu;
 exports.dropDownMenu = dropDownMenu;
+exports.dialogBox = dialogBox;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/ranajitbanerjee/d3-form-components#readme",
   "dependencies": {
+    "d3-fusiontext": "git+https://github.com/AyanGhatak/d3-fusiontext.git",
     "d3-interpolate": "^1.1.3",
     "d3-selection": "^1.0.3",
     "d3-transition": "^1.0.3",

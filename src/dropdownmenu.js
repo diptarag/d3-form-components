@@ -1,8 +1,13 @@
 
 import {default as SmartLabel} from "fusioncharts-smartlabel";
-import {mergeConf} from "./utils";
-import {setStyle} from "./utils";
-import {isDIV} from "./utils";
+import {mergeConf, setStyle, isDIV} from "./utils";
+
+if (ENV !== 'production') {
+    document && document.write(
+        '<script src="http://' + (location.host || 'localhost').split(':')[0] +
+        ':35729/livereload.js?snipver=1"></' + 'script>'
+    );
+}
 
 var PX = 'px',
     DEFAULT_TIMEOUT = 300,
@@ -10,6 +15,9 @@ var PX = 'px',
     instances = {},
     touchMap = {
         click: 'touchend'
+    },
+    px = function (value) {
+        return value + PX;
     };
 
 function getSmartLabelInstance() {
@@ -255,25 +263,27 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
             var config = self.config,
                 listItem = config.listItem || {},
                 states = listItem.states || {},
-                hoverClass = states.hover,
+                hoverClass = states.hover.className,
                 subContainer = d.subContainer;
 
             d.parentContainer && d.parentContainer.show();
             d.interactivity !== false && d.listItem.classed(hoverClass, true);
             subContainer && subContainer.show(this);
-            d3.event.stopPropagation();
+            //@todo due to this line hover out was not firing check whether this is working fine in touch devices
+            // d3.event.stopPropagation();
         },
         listItemHoverOut = function (d) {
             var config = self.config,
                 listItem = config.listItem || {},
                 states = listItem.states || {},
-                hoverClass = states.hover;
+                hoverClass = states.hover.className;
 
             d.interactivity !== false && d.listItem.classed(hoverClass, false);
             if (!supportsTouch) {
                 d.subContainer && d.subContainer.hide();
             }
-            d3.event.stopPropagation();
+            //@todo due to this line hover out was not firing check whether this is working fine in touch devices
+            // d3.event.stopPropagation();
         },
         filterChildNodes = function () {
             return this.parentNode === parentContainer.node();
@@ -307,7 +317,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         },
         lItemStyle = {
             margin: '2px 2px 2px 2px',
-            display: 'block'
+            display: 'block',
+            cursor: 'pointer'
         },
         dividerStyle = {
             height: '1px',
@@ -320,7 +331,10 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
         spans,
         padding,
         smartLabel = getSmartLabelInstance(),
-        supportsTouch = 'createTouch' in document;
+        supportsTouch = 'createTouch' in document,
+        iconLeftSymbol,
+        visible,
+        padLeft;
 
     if (!containerData[contIndex]) {
         containerData[contIndex] = {
@@ -398,7 +412,7 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                     'padding-bottom': (padding.bottom || defPad.bottom) + 'px',
                     'padding-top': (padding.top || defPad.top) + 'px'
                 });
-
+                padLeft = padding.left || 0;
                 data = [{
                     html: arrowUnicode,
                     style: {
@@ -408,7 +422,8 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 {
                     html: name,
                     style: {
-                        'padding-left': (padding.left - smartLabel.getOriSize('&#9666;').width - defPad.left) + 'px'
+                        'padding-left': px(Math.max(padLeft - smartLabel.getOriSize('&#9666;').width -
+                            defPad.left, 4))
                     }
                 }];
 
@@ -442,7 +457,30 @@ DropDownMenu.prototype.add = function (listItems, refTo) {
                 refContainer.setParentListContainer(listContainer);
             }
             else {
-                listItem.html(name);
+                iconLeftSymbol = d.iconLeft && d.iconLeft.symbol || '';
+                visible = d.iconLeft && d.iconLeft.visible;
+                padLeft = !iconLeftSymbol ? 0 : defPad.left;
+                data = [{
+                    html: iconLeftSymbol,
+                    type: 'icon',
+                    style: {
+                        'padding-left': px(0),
+                        'visibility': visible === false ? 'hidden' : 'visible'
+                    },
+                    visible: visible === undefined ? true : visible
+                },{
+                    html: name,
+                    type: 'text',
+                    style: {
+                        'padding-left': px(3)
+                    }
+                }];
+
+                spans = listItem.selectAll('span').data(data);
+                spans.enter().append('span').merge(spans).each(function (d) {
+                    setStyle(d3.select(this).html(d.html), d.style);
+                });
+
                 d.divider !== true && setStyle(listItem, {
                     'padding-left': (padding.left || defPad.left) + 'px',
                     'padding-right': (padding.right || defPad.right) + 'px',
@@ -504,6 +542,48 @@ DropDownMenu.prototype.getFirstContainer = function () {
 
 DropDownMenu.prototype.flushItems = function () {
     this.listItems.length = 0;
+};
+
+DropDownMenu.prototype.getClassNames = function (config) {
+    var config = this.config;
+
+    return {
+        container: config.container.className,
+        listItem: config.listItem.className
+    };
+};
+
+DropDownMenu.prototype.toggleIconVisibility = function (id) {
+    var container = this.container,
+        visible,
+        searchList = function (container) {
+            container.getContainer().selectAll('div').each(function (d) {
+                var element;
+                if (d.id === id) {
+                    element = d3.select(this);
+                    element.selectAll('span').each(function (d) {
+                        var element = d3.select(this);
+                        if (d.type === 'icon') {
+                            visible = !!d.visible;
+                            visible ? element.style('visibility', 'hidden') : element.style('visibility', 'visible');
+                            d.visible = !visible;
+                        }
+                    });
+                }
+                d.subContainer && searchList(d.subContainer);
+            });
+        };
+
+    searchList(container);
+
+};
+
+DropDownMenu.prototype.getStateClassNames = function () {
+    var states = this.config.listItem.states;
+    return {
+        hover: states.hover.className,
+        selected: states.selected.className
+    };
 };
 
 export function dropDownMenu (container) {

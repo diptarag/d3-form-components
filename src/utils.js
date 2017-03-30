@@ -1,4 +1,23 @@
 
+var classRules = {
+    button: ['container', 'text', 'symbol'],
+    inputButton: ['container', 'text', 'input', 'icon'],
+    selectButton: ['container', 'text', 'arrow'],
+    label: ['container', 'text']
+};
+
+export function getIndividualClassNames (className, component) {
+    var rules = classRules[component],
+        classNames = {},
+        i,
+        len = rules.length;
+
+    for (i = 0; i < len; i++) {
+        classNames[rules[i]] = className + '-' + rules[i];
+    }
+    return classNames;
+}
+
 export function getSmartComputedStyle (group, css) {
     var testText = 'W',
         mandatoryStyle = {'fill-opacity': 0},
