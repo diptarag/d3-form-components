@@ -29,6 +29,7 @@
     "d3-fusiontext": "git+https://github.com/AyanGhatak/d3-fusiontext.git",
     "d3-interpolate": "^1.1.3",
     "d3-selection": "^1.0.3",
+    "d3-tooltip": "git+https://github.com/akash-goswami/d3-tooltip.git",
     "d3-transition": "^1.0.3",
     "fusioncharts-smartlabel": "^1.0.2"
   },
