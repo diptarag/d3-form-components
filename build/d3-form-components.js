@@ -15349,10 +15349,13 @@ Object.defineProperty(exports, '__esModule', { value: true });
 })));
 });
 
+var tooltip = unwrapExports(d3Tooltip);
+
 /* jshint ignore:start */
 // import {select, event} from "d3-selection";
 // import {tooltip} from "d3-tooltip";
 // import {transition} from "d3-transition";
+console.log(tooltip);
 /*eslint-disable */
 
 
@@ -15671,38 +15674,39 @@ Button.prototype.addHoverEvents = function () {
 };
 
 Button.prototype.attachTooltip = function () {
-    var tooltip = this.tooltip,
+    return;
+    var tooltip$$1 = this.tooltip,
         buttonGroup = this.buttonGroup,
         toolText = this.config.toolText,
         elements = this.elements,
         bBox = this.getBBox();
 
     if (toolText !== undefined) {
-        if (!tooltip) {
-            tooltip = this.tooltip = tooltip().namespace(this.config.namespace)
+        if (!tooltip$$1) {
+            tooltip$$1 = this.tooltip = tooltip$$1().namespace(this.config.namespace)
                 .attachTo(select(this.parentGroup.node().ownerSVGElement))
                 .offset({x: 15, y: 15});
         }
 
-        buttonGroup.data([[null, toolText]]).call(tooltip);
+        buttonGroup.data([[null, toolText]]).call(tooltip$$1);
 
         buttonGroup.on('touchstart.d3-button-tooltip', function () {
             event.preventDefault();
             event.stopPropagation();
-            tooltip.show([bBox.x + 10, bBox.y - bBox.height - 30]);
+            tooltip$$1.show([bBox.x + 10, bBox.y - bBox.height - 30]);
         });
 
         buttonGroup.on('touchmove.d3-button-tooltip', function () {
             var event$$1 = event$$1;
             event$$1.preventDefault();
             event$$1.stopPropagation();
-            tooltip.show([bBox.x + 10, bBox.y - bBox.height - 30]);
+            tooltip$$1.show([bBox.x + 10, bBox.y - bBox.height - 30]);
         });
 
         buttonGroup.on('touchend.d3-button-tooltip', function () {
             event.preventDefault();
             event.stopPropagation();
-            tooltip.hide();
+            tooltip$$1.hide();
         });
     }
 };

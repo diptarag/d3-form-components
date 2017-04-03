@@ -9,6 +9,7 @@ import {dropDownMenu as DropDownMenu} from "./dropdownmenu";
 import {select, event, transition} from "d3";
 import {default as tooltip} from "d3-tooltip";
 
+console.log(tooltip);
 /*eslint-disable */
 
 
@@ -327,6 +328,7 @@ Button.prototype.addHoverEvents = function () {
 };
 
 Button.prototype.attachTooltip = function () {
+    return;
     var tooltip = this.tooltip,
         buttonGroup = this.buttonGroup,
         toolText = this.config.toolText,
